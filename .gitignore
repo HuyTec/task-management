@@ -1,0 +1,55 @@
+# ==========================================
+# .gitignore cho dự án Task Management
+# Spring Boot (Java) + React.js (Vite)
+# ==========================================
+
+# === JAVA / MAVEN ===
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+.maven
+.vscode
+# === SPRING BOOT ===
+# File cấu hình nhạy cảm (KHÔNG commit lên Git)
+backend/src/main/resources/application-local.properties
+backend/src/main/resources/application-prod.properties
+
+# === NODE.JS / REACT ===
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# === ENVIRONMENT VARIABLES (QUAN TRỌNG: không commit file .env) ===
+.env
+.env.*
+!.env.example
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === DOCKER ===
+# Không ignore docker-compose nhưng ignore override file cục bộ
+docker-compose.override.yml
+application.properties
+
+# === LOGS ===
+*.log
+logs/
+work-diary.md
+architecture.md
+scripts/init_db.sql

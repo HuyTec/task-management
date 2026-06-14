@@ -1,0 +1,72 @@
+# ==========================================
+# Docker Compose - Local Development
+# Khởi động toàn bộ hạ tầng với 1 lệnh:
+#   docker-compose up -d
+# ==========================================
+
+version: '3.9'
+
+services:
+
+  # === 1. PostgreSQL Database ===
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskmanagement_postgres
+    environment:
+      POSTGRES_DB: taskmanagement_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"          # Ánh xạ port host:container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # Giữ dữ liệu khi restart
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql  # Chạy SQL khởi tạo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === 2. Redis Cache ===
+  redis:
+    image: redis:7-alpine
+    container_name: taskmanagement_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
+  # === 3. n8n Workflow Automation ===
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: taskmanagement_n8n
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin123
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  # === 4. Ollama (Local LLM) - Tùy chọn ===
+  # Uncomment nếu muốn chạy LLM local
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: taskmanagement_ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+
+# === Volumes: lưu dữ liệu persistent ===
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  # ollama_data:
