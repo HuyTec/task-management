@@ -92,10 +92,6 @@
         </dependency>
 
         <!-- 8. Spring AI - OpenAI: Tích hợp OpenAI API (ChatGPT) -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
-        </dependency>
 
         <!-- 9. Validation: Validate dữ liệu đầu vào (@NotNull, @Size...) -->
         <dependency>
