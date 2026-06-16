@@ -1,6 +1,5 @@
 package com.taskmanagement.model;
-
-import javax.management.MXBean;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "expenses")
