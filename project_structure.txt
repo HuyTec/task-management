@@ -37,8 +37,17 @@ task-management/
 │   ├── deploy_render.sh
 │   └── init_db.sql
 ├── .gitignore
-├── application.properties
 ├── architecture.md
 ├── docker-compose.yml
 ├── README.md
 └── work-diary.md
+
+
+#kích hoạt Springboot
+cd backend
+mvn spring-boot:run 
+
+#kích hoạt các service từ docker-compose
+docker-compose up -d
+docker-compose ps
+
