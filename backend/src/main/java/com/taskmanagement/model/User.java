@@ -12,7 +12,11 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "users")
 public class User {
@@ -23,6 +27,10 @@ public class User {
     @Column(nullable = false, unique = true)
     @NotBlank(message = "Username cannot be blank")
     private String username;
+
+    @Column(nullable = false)
+    @NotBlank(message = "Display name cannot be blank")
+    private String displayName;
 
     @Column(nullable = false, length = 255)
     @NotBlank(message = "Password cannot be blank")
@@ -42,41 +50,7 @@ public class User {
     @Column
     private LocalDateTime updatedAt;
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setPassword(String password) {
-        this.password = password; // Would password hashing logic go here? !Nah, this is Service responsibility, not Model's
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public UserRole getRole() {
-        return role;
-    }
-
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
 
     //thêm createdAt và updatedAt:
     @PrePersist

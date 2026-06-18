@@ -1,10 +1,14 @@
 package com.taskmanagement.repository;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.TaskStatus;
+import com.taskmanagement.model.TaskPriority;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByUserId(Long userId);
 

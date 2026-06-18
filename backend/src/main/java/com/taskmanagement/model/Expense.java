@@ -12,7 +12,11 @@ import jakarta.validation.constraints.Positive;
 import java.time.LocalDateTime;
 import jakarta.persistence.PrePersist;
 import java.time.LocalDate;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "expenses")
 public class Expense {
@@ -46,43 +50,10 @@ public class Expense {
     @Column(name = "expense_date", nullable = false)
     private LocalDate expenseDate;
     
-    
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public Double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public ExpenseCategory getExpenseCategory() {
-        return expenseCategory;
-    }
-
-    public void setExpenseCategory(ExpenseCategory expenseCategory) {
-        this.expenseCategory = expenseCategory;
-    }
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     } 
-    
-    public void updateExpenseDate(LocalDate expenseDate) {
-        this.expenseDate = expenseDate;
-    }
 
 }
