@@ -49,8 +49,8 @@ public class User {
     
     @Column
     private LocalDateTime updatedAt;
-    // Getters and Setters
-
+    
+    private boolean isDeleted = false;
 
     //thêm createdAt và updatedAt:
     @PrePersist
@@ -61,5 +61,13 @@ public class User {
     @PreUpdate
     protected void onUpdate(){
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void activate(){
+        this.isDeleted = false;
+    }
+
+    public void deactivate(){
+        this.isDeleted = true;
     }
 }

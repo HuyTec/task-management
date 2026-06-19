@@ -4,8 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record UpdateUserRequest(
-    @NotBlank(message = "Display name is not required")
+    @Size(max = 50, min=2, message = "Display name must be at most 50 characters long and at least 2 characters long")
     String displayName,
+
+    @NotBlank(message = "Username is not required")
+    String username,
 
     @NotBlank(message = "Email is not required")
     @Email(message = "Email is invalid")

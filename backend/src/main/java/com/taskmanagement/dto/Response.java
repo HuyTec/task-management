@@ -1,7 +1,7 @@
 package com.taskmanagement.dto;
 
 public record Response<T>(boolean success, T data, String message) {
-    public static <T> Response<T> ok(T data, String message) {
+    public static <T> Response<T> success(T data, String message) {
         return new Response<>(true, data, message);
     }
 
