@@ -1,4 +1,4 @@
-package com.taskmanagement.service;
+package com.taskmanagement.service.user;
 import org.springframework.stereotype.Service;
 import com.taskmanagement.dto.Response;
 import com.taskmanagement.model.User;
