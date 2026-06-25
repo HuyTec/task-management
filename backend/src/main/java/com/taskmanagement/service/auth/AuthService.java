@@ -3,6 +3,7 @@ package com.taskmanagement.service.auth;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,6 +20,7 @@ import com.taskmanagement.repository.UserRepository;
 import jakarta.validation.Valid;
 
 @Service
+@Validated
 public class AuthService {
     private final UserRepository userRepository;
 
@@ -64,23 +66,23 @@ public class AuthService {
             throw new RuntimeException("Username or Email is existed");
         }
 
-        String accessToken = jwtService.generateToken(username);
-        String refreshToken = jwtService.generateRefreshToken(username);
-        
         User user = new User();
         user.setDisplayName(displayName);
-        if (user.getDisplayName() == null || user.getDisplayName() == "") {
+        if (user.getDisplayName() == null || user.getDisplayName().isBlank()) {
             user.setDisplayName(username);
         }
         
-        
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(password));
 
         userRepository.save(user);
 
+        String accessToken = jwtService.generateToken(username);
+        String refreshToken = jwtService.generateRefreshToken(username);
 
-        AuthResponse authResponse = new AuthResponse(accessToken, refreshToken, )
-
-        return null;
+        UserResponse userResponse = userMapper.toUserResponse(user);
+        return Response.success(new AuthResponse(accessToken, refreshToken, userResponse),"Register successful!");
     }
 
 }

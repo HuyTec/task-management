@@ -50,7 +50,7 @@ public class User {
     @Column
     private LocalDateTime updatedAt;
     
-    private boolean isDeleted = false;s
+    private boolean isDeleted = false;
 
     //thêm createdAt và updatedAt:
     @PrePersist
