@@ -55,6 +55,7 @@ public class AuthService {
     }
 
     public Response<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        String displayName = request.displayName();
         String username = request.username();
         String password = request.password();
         String email = request.email();
@@ -63,26 +64,23 @@ public class AuthService {
             throw new RuntimeException("Username or Email is existed");
         }
 
-        User user = new User(username, passwordEncoder.encode(password), email);
-        user.setDisplayName(normalizeOptionalText(request.displayName()));
-        if (user.getDisplayName() == null) {
+        String accessToken = jwtService.generateToken(username);
+        String refreshToken = jwtService.generateRefreshToken(username);
+        
+        User user = new User();
+        user.setDisplayName(displayName);
+        if (user.getDisplayName() == null || user.getDisplayName() == "") {
             user.setDisplayName(username);
         }
-        user.setAvatarUrl(normalizeOptionalText(request.avatarUrl()));
-        markUserOnline(user);
+        
+        
+
         userRepository.save(user);
 
-        String token = jwtService.generateToken(username);
 
-        return new LoginResponse(
-            user.getUserId(),
-            user.getUsername(),
-            user.getDisplayName(),
-            user.getEmail(),
-            user.getAvatarUrl(),
-            token,
-            user.getRole()
-        );
+        AuthResponse authResponse = new AuthResponse(accessToken, refreshToken, )
+
+        return null;
     }
 
 }
