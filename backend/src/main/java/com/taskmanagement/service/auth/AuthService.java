@@ -4,17 +4,16 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import com.taskmanagement.dto.auth.LoginRequest;
 import com.taskmanagement.dto.auth.RegisterRequest;
 import com.taskmanagement.dto.user.UserResponse;
+import com.taskmanagement.exception.DuplicatedResourceException;
 import com.taskmanagement.mapper.UserMapper;
 import com.taskmanagement.model.User;
-import com.taskmanagement.dto.auth.AuthResponse;
-import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.auth.AccessInfo;
 import com.taskmanagement.repository.UserRepository;
 
 import jakarta.validation.Valid;
@@ -40,7 +39,7 @@ public class AuthService {
         this.userMapper = userMapper;
     }
 
-    public Response<AuthResponse> login(@Valid @RequestBody LoginRequest request){
+    public AccessInfo login(@Valid LoginRequest request){
         String username = request.username();
         String password = request.password();
         
@@ -50,28 +49,33 @@ public class AuthService {
 
         String accessToken = jwtService.generateToken(username);
         String refreshToken = jwtService.generateRefreshToken(username);
+
+        
         UserResponse userResponse = userMapper.toUserResponse(user);
 
-        AuthResponse authResponse = new AuthResponse(accessToken, refreshToken, userResponse);
-        return Response.success(authResponse, "Login successful!");
+        return new AccessInfo(accessToken, refreshToken, userResponse);
     }
 
-    public Response<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public AccessInfo register(@Valid RegisterRequest request) {
         String displayName = request.displayName();
         String username = request.username();
         String password = request.password();
         String email = request.email();
 
-        if (userRepository.existsByUsername(username) || userRepository.existsByEmail(email)) {
-            throw new RuntimeException("Username or Email is existed");
+        if (userRepository.existsByUsername(username)) {
+            throw new DuplicatedResourceException("Username is existed");
+        }
+
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicatedResourceException("Email is existed");
         }
 
         User user = new User();
-        user.setDisplayName(displayName);
-        if (user.getDisplayName() == null || user.getDisplayName().isBlank()) {
+        
+        if (displayName == null || displayName.isBlank()) {
             user.setDisplayName(username);
         }
-        
+        else user.setDisplayName(displayName);
         user.setUsername(username);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
@@ -82,7 +86,7 @@ public class AuthService {
         String refreshToken = jwtService.generateRefreshToken(username);
 
         UserResponse userResponse = userMapper.toUserResponse(user);
-        return Response.success(new AuthResponse(accessToken, refreshToken, userResponse),"Register successful!");
+        return new AccessInfo(accessToken, refreshToken, userResponse);
     }
 
 }

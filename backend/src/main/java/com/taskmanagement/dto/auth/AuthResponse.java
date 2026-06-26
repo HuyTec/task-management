@@ -1,15 +1,9 @@
 package com.taskmanagement.dto.auth;
 
-import jakarta.validation.constraints.NotBlank;
 import com.taskmanagement.dto.user.UserResponse;
 
-public record AuthResponse(
-    @NotBlank(message = "Access token is required")
-    String accessToken,
-
-    @NotBlank(message = "Refresh token is required")
-    String refreshToken,
-
-    UserResponse user
+public record AuthResponse( // Tới Frontend
+    String accessToken, // Nếu Jwt hoạt động tốt thì ở đây không bao giờ trống, nên chẳng cần Valid @NotBlank
+    UserResponse user // chắc chắn không null trong service vì có Validation
 ) {
 }
