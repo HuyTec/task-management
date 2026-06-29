@@ -29,7 +29,6 @@ public class User {
     private String username;
 
     @Column(nullable = false)
-    @NotBlank(message = "Display name cannot be blank")
     private String displayName;
 
     @Column(nullable = false, length = 255)
@@ -56,6 +55,9 @@ public class User {
     @PrePersist
     protected void onCreate(){
         this.createdAt = LocalDateTime.now();
+        if (this.displayName == null || this.displayName.isBlank()) {
+            this.displayName = this.username;
+        }
     }
 
     @PreUpdate
