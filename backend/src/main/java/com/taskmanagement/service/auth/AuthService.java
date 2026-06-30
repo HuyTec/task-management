@@ -104,8 +104,9 @@ public class AuthService {
 
         User user =  userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
         String accessToken = jwtService.generateToken(username);
+        String newRefreshToken = jwtService.generateRefreshToken(username);
         UserResponse userResponse = userMapper.toUserResponse(user);
-        return new AccessInfo(accessToken, refreshToken, userResponse);
+        return new AccessInfo(accessToken, newRefreshToken, userResponse);
     }
 
 }

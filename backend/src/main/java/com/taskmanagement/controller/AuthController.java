@@ -17,8 +17,6 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 
@@ -31,6 +29,8 @@ public class AuthController {
     @Value ("${jwt.refresh-expiration}")
     private int refreshExpiration;
 
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
     public AuthController(AuthService authSevice){
         this.authService = authSevice;
     }
@@ -38,7 +38,7 @@ public class AuthController {
     private void setCookie(String name, String value, HttpServletResponse response){
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(cookieSecure);
         cookie.setPath("/" );
         cookie.setMaxAge(refreshExpiration);
         response.addCookie(cookie);
@@ -62,7 +62,7 @@ public class AuthController {
         }
 
         AccessInfo accessInfo = authService.refresh(refreshToken);
-        setCookie("refreshToken", accessInfo.refreshToken(), response);
+        setCookie("refresh-token", accessInfo.refreshToken(), response);
         return ResponseEntity.ok(Response.success(new AuthResponse(accessInfo.accessToken(), accessInfo.user()), "Refresh successful!"));
     }
 
