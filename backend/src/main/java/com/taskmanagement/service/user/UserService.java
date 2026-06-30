@@ -7,6 +7,10 @@ import com.taskmanagement.dto.user.UserResponse;
 import com.taskmanagement.mapper.UserMapper;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.dto.user.CreateUserRequest;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.taskmanagement.exception.DuplicatedResourceException;
 import com.taskmanagement.exception.ResourceNotFoundException;
@@ -48,6 +52,14 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
     }
 
+    private User findUserOrThrow(String username) { // overloading
+        if (username == null || username.isBlank()) {
+            throw new BadRequestException("User id is required");
+        }
+
+        return userRepository.findByUsernameAndIsDeletedFalse(username).orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
+    }
+
     private void ensureEmailAvailable(String email) {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicatedResourceException("Email already exists: " + email);
@@ -60,7 +72,44 @@ public class UserService {
         }
     }
 
+    private User updateUser(User user, UpdateUserRequest request) {
+        if (request.username() != null && !request.username().equals(user.getUsername())) {
+            ensureUsernameAvailable(request.username());
+            user.setUsername(request.username());
+        }
+
+        if (request.email() != null && !request.email().equals(user.getEmail())) {
+            ensureEmailAvailable(request.email());
+            user.setEmail(request.email());
+        }
+
+        if (request.displayName() != null) {
+            user.setDisplayName(request.displayName());
+        }
+
+        if (request.password() != null) {
+            user.setPassword(passwordEncoder.encode(request.password()));
+        }
+
+        return userRepository.save(user);
+    }
+
+    private Response<UserResponse> saveAndReturn(User user, String message) {
+        User savedUser = userRepository.save(user);
+        UserResponse userResponse = userMapper.toUserResponse(savedUser);
+        return Response.success(userResponse, message);
+    }
+
 //_________________________________________________________________________________________________________________
+    public Response<List<UserResponse>> getAllUsers() {
+        List<User> users =  userRepository.findAll();
+        List<UserResponse> userResponses = new ArrayList<>();
+        for(User user: users){
+            UserResponse userResponse = userMapper.toUserResponse(user);
+            userResponses.add(userResponse);
+        }
+        return Response.success(userResponses, "All user retrieved successfully!");
+    }
 
     public Response<UserResponse> createUser(CreateUserRequest user) {
         validateUserRequest(user);
@@ -70,9 +119,7 @@ public class UserService {
         userEntity.setPassword(passwordEncoder.encode(user.password()));
         userEntity.setRole(UserRole.USER);         // Set a default role, adjust as needed
 
-        userRepository.save(userEntity);
-        UserResponse userResponse = userMapper.toUserResponse(userEntity);
-        return Response.success(userResponse, "User created successfully!");
+        return saveAndReturn(userEntity, "User created successfully!");
     }
 
     public Response<UserResponse> getUserById(Long id) {
@@ -81,36 +128,41 @@ public class UserService {
         return Response.success(userResponse, "User retrieved successfully!");
     }
 
+    public Response<UserResponse> getUserByUsername(String username) {
+        User user = findUserOrThrow(username);
+        UserResponse userResponse = userMapper.toUserResponse(user);
+        return Response.success(userResponse, "User retrieved successfully!");
+    }
+
     public Response<Void> deleteUserById(Long id) {
         User user = findUserOrThrow(id);
-        user.deactivate(); // Mark the user as deleted instead of actually deleting them
-        userRepository.save(user);
+        userRepository.delete(user);
         return Response.success(null, "User deleted successfully!");
     }
 
     public Response<UserResponse> updateUserById(Long id, UpdateUserRequest userRequest) {
         User user = findUserOrThrow(id);
-
-        if (userRequest.username() != null && !userRequest.username().equals(user.getUsername())) {
-            ensureUsernameAvailable(userRequest.username());
-            user.setUsername(userRequest.username());
-        }
-
-        if (userRequest.email() != null && !userRequest.email().equals(user.getEmail())) {
-            ensureEmailAvailable(userRequest.email());
-            user.setEmail(userRequest.email());
-        }
-
-        if (userRequest.displayName() != null) {
-            user.setDisplayName(userRequest.displayName());
-        }
-
-        if (userRequest.password() != null) {
-            user.setPassword(passwordEncoder.encode(userRequest.password()));
-        }
-
-        User savedUser = userRepository.save(user);
+        User savedUser = updateUser(user, userRequest);
         UserResponse userResponse = userMapper.toUserResponse(savedUser);
         return Response.success(userResponse, "User updated successfully!");
+    }
+
+    public Response<UserResponse> updateUserByUsername(String username, UpdateUserRequest userRequest) {
+        User user = findUserOrThrow(username);
+        User savedUser = updateUser(user, userRequest);
+        UserResponse userResponse = userMapper.toUserResponse(savedUser);
+        return Response.success(userResponse, "User updated successfully!");
+    }
+
+    public Response<UserResponse> deactivateUser(Long id) {
+        User user = findUserOrThrow(id);
+        user.deactivate();
+        return saveAndReturn(user, "User deactivated!");
+    }
+
+    public Response<UserResponse> activateUser(Long id) {
+        User user = findUserOrThrow(id);
+        user.activate();
+        return saveAndReturn(user, "User activated!");
     }
 }

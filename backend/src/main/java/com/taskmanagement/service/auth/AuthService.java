@@ -18,8 +18,6 @@ import com.taskmanagement.model.User;
 import com.taskmanagement.model.UserRole;
 import com.taskmanagement.dto.auth.AccessInfo;
 import com.taskmanagement.repository.UserRepository;
-
-import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 
 @Service
