@@ -53,3 +53,4 @@ logs/
 work-diary.md
 architecture.md
 scripts/init_db.sql
+task-management.http
