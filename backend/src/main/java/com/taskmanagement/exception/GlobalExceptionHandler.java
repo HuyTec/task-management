@@ -43,6 +43,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Response<Void>> handleForbidden(ForbiddenException ex) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     private ResponseEntity<Response<Void>> build(@NonNull HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Response.error(message));
     }

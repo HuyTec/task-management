@@ -11,8 +11,10 @@ import com.taskmanagement.dto.user.CreateUserRequest;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.taskmanagement.exception.DuplicatedResourceException;
+import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.dto.user.UpdateUserRequest;
@@ -48,7 +50,7 @@ public class UserService {
             throw new BadRequestException("User id is required");
         }
 
-        return userRepository.findByIdAndIsDeletedFalse(id)
+        return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
     }
 
@@ -57,7 +59,7 @@ public class UserService {
             throw new BadRequestException("User id is required");
         }
 
-        return userRepository.findByUsernameAndIsDeletedFalse(username).orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
+        return userRepository.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
 
     private void ensureEmailAvailable(String email) {
@@ -86,8 +88,8 @@ public class UserService {
         if (request.displayName() != null) {
             user.setDisplayName(request.displayName());
         }
-
-        if (request.password() != null) {
+        
+        if (request.password() != null && !request.password().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.password()));
         }
 
@@ -136,6 +138,14 @@ public class UserService {
 
     public Response<Void> deleteUserById(Long id) {
         User user = findUserOrThrow(id);
+        String currentUsername = SecurityContextHolder.getContext()
+            .getAuthentication()
+            .getName();
+
+        if (user.getUsername().equals(currentUsername)) {
+            throw new ForbiddenException("You cannot delete your own account.");
+        }
+        
         userRepository.delete(user);
         return Response.success(null, "User deleted successfully!");
     }

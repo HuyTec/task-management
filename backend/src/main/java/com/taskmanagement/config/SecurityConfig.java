@@ -2,16 +2,16 @@ package com.taskmanagement.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import com.taskmanagement.filter.JwtFilter;
 import jakarta.servlet.Filter;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -26,10 +26,14 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final UserDetailsService userDetailsService;
+    private final AuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final AccessDeniedHandler jwtAccessDeniedHandler;
 
-    public SecurityConfig(JwtFilter jwtFilter, UserDetailsService userDetailsService ) {
+    public SecurityConfig(JwtFilter jwtFilter, UserDetailsService userDetailsService, AuthenticationEntryPoint jwtAuthenticationEntryPoint, AccessDeniedHandler jwtAccessDeniedHandler ) {
         this.jwtFilter = jwtFilter;
         this.userDetailsService = userDetailsService;
+        this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     }
 
     @Bean
@@ -41,6 +45,11 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                .accessDeniedHandler(jwtAccessDeniedHandler)
+            )
+
             .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/**").permitAll().anyRequest().authenticated())
             .addFilterBefore((Filter) jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -49,6 +58,7 @@ public class SecurityConfig {
 
         return http.build();
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception{
@@ -63,20 +73,5 @@ public class SecurityConfig {
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
-
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory){
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-
-        template.setConnectionFactory(connectionFactory);
-
-        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer();
-
-        template.setKeySerializer(serializer);
-        template.setHashKeySerializer(serializer);
-
-        return template;
-    }
-
 
 }
