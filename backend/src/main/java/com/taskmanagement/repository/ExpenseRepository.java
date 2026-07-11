@@ -1,5 +1,7 @@
 package com.taskmanagement.repository;
 import com.taskmanagement.model.Expense;
+import com.taskmanagement.repository.projection.TaskTotalProjection;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,4 +25,12 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                             @Param("toDate") LocalDate toDate,
                             @Param("keyword") String keyword,
                             @Param("categoryId") Long categoryId);
+    
+    @Query("""
+    SELECT e.task.id AS taskId, COALESCE(SUM(e.amount), 0) AS total
+    FROM Expense e
+    WHERE e.task.id IN :taskIds
+    GROUP BY e.task.id
+    """)
+    List<TaskTotalProjection> sumAmountsByTaskIds(@Param("taskIds") List<Long> taskIds);
 }
