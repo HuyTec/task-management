@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -25,4 +26,5 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByUserIdAndDueDateBefore(Long userId, LocalDate dueDate);
     List<Task> findByUserIdAndDueDateAfter(Long userId, LocalDate dueDate);
+    Optional<Task> findByIdAndUserId(Long id, Long userId);
 }

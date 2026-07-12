@@ -11,6 +11,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import java.time.LocalDateTime;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
@@ -47,6 +49,8 @@ public class Expense {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    private LocalDateTime updatedAt;
+
     @Column(name = "expense_date", nullable = false)
     private LocalDate expenseDate;
     
@@ -56,4 +60,8 @@ public class Expense {
         this.createdAt = LocalDateTime.now();
     } 
 
+    @PreUpdate
+    protected void onUpdate(){
+        this.updatedAt = LocalDateTime.now();
+    }
 }

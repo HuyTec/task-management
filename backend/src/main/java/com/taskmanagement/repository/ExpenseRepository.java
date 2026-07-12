@@ -10,6 +10,8 @@ import java.util.List;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByUserId(Long userId);
+
+    List<Expense> findByTaskId(Long taskId);
     
     @Query("SELECT e FROM Expense e WHERE e.user.id = :userId" 
     + " AND (:keyword IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :keyword, '%')))"

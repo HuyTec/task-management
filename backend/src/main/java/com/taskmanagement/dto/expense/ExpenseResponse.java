@@ -11,7 +11,6 @@ public record ExpenseResponse(
     Long taskId,
     Long categoryId,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt,
     LocalDate expenseDate
 ) {
 }
