@@ -1,17 +1,11 @@
 package com.taskmanagement.service.task;
 
 import java.util.ArrayList;
-import java.util.Collection;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.catalina.security.SecurityUtil;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import com.taskmanagement.dto.Response;
@@ -20,7 +14,8 @@ import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.task.UpdateTaskRequest;
-import com.taskmanagement.dto.user.UserResponse;
+import com.taskmanagement.exception.BadRequestException;
+import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.mapper.ExpenseMapper;
 import com.taskmanagement.mapper.TaskMapper;
@@ -52,11 +47,15 @@ public class TaskService {
         this.securityUtils = securityUtils;
     }
 
+    // private Task ensureTaskAvailable(boolean isAdmin, Long userId, Long id) {
+    //     return isAdmin ? taskRepository.findById(id)
+    //                             .orElseThrow(() -> new ResourceNotFoundException("Task not found!"))
+    //                     : taskRepository.findByIdAndUserId(id, userId)
+    //                             .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+    // }
+
     private Task ensureTaskAvailable(boolean isAdmin, Long userId, Long id) {
-        return isAdmin ? taskRepository.findById(id)
-                                .orElseThrow(() -> new ResourceNotFoundException("Task not found!"))
-                        : taskRepository.findByIdAndUserId(id, userId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+        return taskRepository.findByIdAndUserId(id, userId).orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
     }
 
     public Response<TaskDetailResponse> getTaskById(Long id) {
@@ -74,6 +73,10 @@ public class TaskService {
     }
 
     public Response<List<TaskResponse>> getAllTask() {
+        boolean isAdmin = securityUtils.isAdmin(securityUtils.getAuthentication());
+        if(!isAdmin) 
+            throw new ForbiddenException("Only admin can view all tasks");
+
         List<Task> tasks =  taskRepository.findAll();
         List<TaskResponse> taskResponses = new ArrayList<>();
         List<Long> taskIds = tasks.stream().map(Task::getId).toList();
@@ -92,6 +95,25 @@ public class TaskService {
             taskResponses.add(response);
         }
         return Response.success(taskResponses, "Task data retrieved successfully!");
+    }
+
+    public Response<List<TaskResponse>> getMyTask() {
+        CustomUserDetails currentUser = securityUtils.getCurrentUser();
+
+        List<Task> tasks = taskRepository.findByUserId(currentUser.getId());
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+
+        if(taskIds.isEmpty()){
+            return Response.success(new ArrayList<>(), "Task data retrieved successfully!");
+        }
+        List<TaskTotalProjection> totals = expenseRepository.sumAmountsByTaskIds(taskIds);
+        Map<Long, Double> totalMap = totals.stream()
+
+            .collect(Collectors.toMap(TaskTotalProjection::getTaskId, TaskTotalProjection::getTotal));
+
+        List<TaskResponse> responses = tasks.stream().map(task -> taskMapper.toTaskResponse(task, totalMap.getOrDefault(task.getId(), 0.0))).toList();
+
+        return Response.success(responses, "Task data retrieved successfully!");
     }
 
     public Response<TaskResponse> createTask(CreateTaskRequest request){
@@ -114,7 +136,7 @@ public class TaskService {
 
         Task task = ensureTaskAvailable(isAdmin, currentUser.getId(), id);
 
-        if (request.title() != null) {
+        if (request.title() != null) { 
             if (request.title().isBlank()) {
                 throw new BadRequestException("Title cannot be blank");
             }

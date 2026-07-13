@@ -7,9 +7,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByUserId(Long userId);
+
+    Optional<Expense> findByIdAndUserId(Long id, Long userId);
 
     List<Expense> findByTaskId(Long taskId);
     
@@ -29,7 +32,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                             @Param("categoryId") Long categoryId);
     
     @Query("""
-    SELECT e.task.id AS taskId, COALESCE(SUM(e.amount), 0) AS total
+    SELECT e.task.id AS taskId, SUM(e.amount) AS total
     FROM Expense e
     WHERE e.task.id IN :taskIds
     GROUP BY e.task.id

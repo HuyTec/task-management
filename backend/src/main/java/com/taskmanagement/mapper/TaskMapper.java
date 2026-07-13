@@ -29,3 +29,4 @@ public interface TaskMapper {
     @Mapping(target = "user", ignore = true)
     public Task toTask(CreateTaskRequest request);
 }
+
