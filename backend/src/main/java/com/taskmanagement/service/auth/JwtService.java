@@ -1,6 +1,9 @@
 package com.taskmanagement.service.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -69,7 +72,24 @@ public class JwtService {
     }
 
     private Key getSignKey() { //tạo khóa ký
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
+        String normalizedSecret = secretKey == null ? "" : secretKey.trim();
+
+        try {
+            byte[] decoded = Decoders.BASE64.decode(normalizedSecret);
+            if (decoded.length >= 32) {
+                return Keys.hmacShaKeyFor(decoded);
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Fall back to plain-text secret handling below
+        }
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(normalizedSecret.getBytes(StandardCharsets.UTF_8));
+            return Keys.hmacShaKeyFor(hash);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Unable to initialize JWT signing key", ex);
+        }
     }
         // secretKey (Base64) → getSignKey() → Key object
         //                                         ↓

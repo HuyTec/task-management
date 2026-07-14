@@ -1,17 +1,26 @@
 package com.taskmanagement.controller;
 
-import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
-// TODO: import @PreAuthorize nếu cần (nhớ lại: getAllTask cần @PreAuthorize("hasRole('ADMIN')")
-// — Expense có cần một endpoint admin-only tương tự không, hay Expense hoàn toàn không có
-// khái niệm "xem tất cả" vì nó gắn chặt với privacy hơn cả Task?)
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.expense.CreateExpenseRequest;
+import com.taskmanagement.dto.expense.ExpenseResponse;
+import com.taskmanagement.dto.expense.UpdateExpenseRequest;
+import com.taskmanagement.service.expense.ExpenseService;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import java.util.List;
-
-import com.taskmanagement.service.expense.ExpenseService;
-// TODO: import DTO cần thiết (Response, ExpenseResponse, CreateExpenseRequest, UpdateExpenseRequest)
 
 @RestController
 @RequestMapping("/api/expenses")
@@ -20,27 +29,33 @@ public class ExpenseController {
 
     private final ExpenseService expenseService;
 
-    // Câu hỏi trước khi viết endpoint đầu tiên:
-    // Expense có cần GET /api/expenses (admin xem tất cả) giống Task không?
-    // Hay vì Expense nhạy cảm hơn (thông tin chi tiêu cá nhân), bạn quyết định
-    // KHÔNG có endpoint admin-only nào cho Expense cả — chỉ có /me?
-    // Đây là quyết định kiến trúc bạn cần tự chốt trước khi viết route này.
+    @GetMapping("/me")
+    public ResponseEntity<Response<List<ExpenseResponse>>> getMyExpenses() {
+        return ResponseEntity.ok(expenseService.getMyExpenses());
+    }
 
-    // TODO: GET /me — lấy expense của chính mình (giống getMyTasks())
+    @GetMapping("/{id}")
+    public ResponseEntity<Response<ExpenseResponse>> getExpenseById(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok(expenseService.getExpenseById(id));
+    }
 
-    // TODO: GET /{id} — xem chi tiết 1 expense (ownership check trong Service)
+    @PostMapping
+    public ResponseEntity<Response<ExpenseResponse>> createExpense(@RequestBody @Valid CreateExpenseRequest request) {
+        return ResponseEntity.ok(expenseService.createExpense(request));
+    }
 
-    // TODO: POST — tạo expense mới
+    @PatchMapping("/{id}")
+    public ResponseEntity<Response<ExpenseResponse>> updateExpense(@PathVariable @Positive Long id, @RequestBody @Valid UpdateExpenseRequest request) {
+        return ResponseEntity.ok(expenseService.updateExpense(id, request));
+    }
 
-    // TODO: PATCH /{id} — cập nhật expense
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Response<Void>> deleteExpense(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok(expenseService.deleteExpense(id));
+    }
 
-    // TODO: DELETE /{id} — xóa expense
-
-    // Gợi ý format 1 method mẫu (bạn tự áp dụng cho các method còn lại,
-    // đối chiếu với TaskController bạn đã viết trước đó):
-    //
-    // @GetMapping("/{id}")
-    // public ResponseEntity<Response<ExpenseResponse>> getExpenseById(@PathVariable @Positive Long id) {
-    //     return ResponseEntity.ok(expenseService.getExpenseById(id));
-    // }
+    @PatchMapping("/{id}/task")
+    public ResponseEntity<Response<ExpenseResponse>> unlinkTask(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok(expenseService.unlinkTask(id));
+    }
 }

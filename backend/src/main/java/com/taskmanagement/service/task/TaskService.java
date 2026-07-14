@@ -47,22 +47,22 @@ public class TaskService {
         this.securityUtils = securityUtils;
     }
 
-    // private Task ensureTaskAvailable(boolean isAdmin, Long userId, Long id) {
-    //     return isAdmin ? taskRepository.findById(id)
+    // private Task ensureTaskAvailable(boolean , Long userId, Long id) {
+    //     return  ? taskRepository.findById(id)
     //                             .orElseThrow(() -> new ResourceNotFoundException("Task not found!"))
     //                     : taskRepository.findByIdAndUserId(id, userId)
     //                             .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
     // }
 
-    private Task ensureTaskAvailable(boolean isAdmin, Long userId, Long id) {
-        return taskRepository.findByIdAndUserId(id, userId).orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+    private Task ensureTaskAvailable(Long userId, Long taskId) {
+        return taskRepository.findByIdAndUserId(taskId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
     }
 
     public Response<TaskDetailResponse> getTaskById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
-        boolean isAdmin = securityUtils.isAdmin(securityUtils.getAuthentication());
 
-        Task task = ensureTaskAvailable(isAdmin, currentUser.getId(), id);
+        Task task = ensureTaskAvailable(currentUser.getId(), id);
 
         List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
         List<ExpenseResponse> expenseResponses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
@@ -132,9 +132,8 @@ public class TaskService {
 
     public Response<TaskDetailResponse> updateTask(Long id, UpdateTaskRequest request) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
-        boolean isAdmin = securityUtils.isAdmin(securityUtils.getAuthentication());
 
-        Task task = ensureTaskAvailable(isAdmin, currentUser.getId(), id);
+        Task task = ensureTaskAvailable(currentUser.getId(), id);
 
         if (request.title() != null) { 
             if (request.title().isBlank()) {
@@ -171,9 +170,8 @@ public class TaskService {
 
     public Response<Void> deleteTaskById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
-        boolean isAdmin = securityUtils.isAdmin(securityUtils.getAuthentication());
 
-        Task task = ensureTaskAvailable(isAdmin, currentUser.getId(), id);
+        Task task = ensureTaskAvailable(currentUser.getId(), id);
 
         List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
         expenses.forEach(ex -> ex.setTask(null));
