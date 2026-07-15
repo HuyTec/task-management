@@ -1,4 +1,4 @@
-package com.taskmanagement.service.storage;
+package com.taskmanagement.service.cache;
 
 import org.springframework.stereotype.Service;
 

@@ -75,25 +75,35 @@ public class UserService {
     }
 
     private User updateUser(User user, UpdateUserRequest request) {
-        if (request.username() != null && !request.username().equals(user.getUsername())) {
-            ensureUsernameAvailable(request.username());
-            user.setUsername(request.username());
-        }
-
-        if (request.email() != null && !request.email().equals(user.getEmail())) {
-            ensureEmailAvailable(request.email());
-            user.setEmail(request.email());
-        }
-
-        if (request.displayName() != null) {
-            user.setDisplayName(request.displayName());
-        }
-        
-        if (request.password() != null && !request.password().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.password()));
-        }
-
+        updateUsernameIfChanged(user, request);
+        updateEmailIfChanged(user, request);
+        updateDisplayNameIfChanged(user, request);
+        updatePasswordIfChanged(user, request);
         return userRepository.save(user);
+    }
+
+    private void updateUsernameIfChanged(User user, UpdateUserRequest request) {
+        if (request.username() == null || request.username().equals(user.getUsername())) return;
+
+        ensureUsernameAvailable(request.username());
+        user.setUsername(request.username());
+    }
+
+    private void updateEmailIfChanged(User user, UpdateUserRequest request) {
+        if (request.email() == null ||request.email().equals(user.getEmail())) return;
+
+        ensureEmailAvailable(request.email());
+        user.setEmail(request.email());
+    }
+
+    private void updateDisplayNameIfChanged(User user, UpdateUserRequest request) {
+        if (request.displayName() == null) return;
+        user.setDisplayName(request.displayName());
+    }
+
+    private void updatePasswordIfChanged(User user, UpdateUserRequest request) {
+        if (request.password() == null || request.password().isBlank()) return;
+        user.setPassword(passwordEncoder.encode(request.password()));
     }
 
     private Response<UserResponse> saveAndReturn(User user, String message) {
