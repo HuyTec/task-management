@@ -18,6 +18,8 @@ import com.taskmanagement.repository.ExpenseRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
+import com.taskmanagement.service.cache.ExpenseCacheService;
+import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.utils.SecurityUtils;
 
     @Service
@@ -27,13 +29,17 @@ import com.taskmanagement.utils.SecurityUtils;
         private final UserRepository userRepository;
         private final TaskRepository taskRepository;
         private final SecurityUtils securityUtils;
+        private final TaskCacheService taskCacheService;
+        private final ExpenseCacheService expenseCacheService;
 
-        public ExpenseService(ExpenseRepository expenseRepository, ExpenseMapper expenseMapper, SecurityUtils securityUtils, UserRepository userRepository, TaskRepository taskRepository) {
+        public ExpenseService(ExpenseCacheService expenseCacheService, TaskCacheService taskCacheService,ExpenseRepository expenseRepository, ExpenseMapper expenseMapper, SecurityUtils securityUtils, UserRepository userRepository, TaskRepository taskRepository) {
             this.expenseMapper = expenseMapper;
             this.expenseRepository = expenseRepository;
             this.securityUtils = securityUtils;
             this.userRepository = userRepository;
             this.taskRepository = taskRepository;
+            this.taskCacheService = taskCacheService;
+            this.expenseCacheService = expenseCacheService;
         }
 
         private Expense ensureExpenseAvailable(Long userId, Long id) {
