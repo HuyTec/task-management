@@ -1,6 +1,9 @@
 package com.taskmanagement.service.cache;
 
 import com.taskmanagement.dto.expense.ExpenseResponse;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.stereotype.Service;
@@ -9,16 +12,13 @@ import java.time.Duration;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class ExpenseCacheService {
 
     private static final String KEY_PREFIX = "expense:";
     private static final Duration TTL = Duration.ofMinutes(30);
 
     private final RedisTemplate<String, Object> redisTemplate;
-
-    public ExpenseCacheService(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
-    }
 
     private String buildKey(Long taskId) {
         return KEY_PREFIX + taskId;

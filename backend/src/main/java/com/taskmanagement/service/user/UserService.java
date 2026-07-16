@@ -6,6 +6,9 @@ import com.taskmanagement.model.UserRole;
 import com.taskmanagement.dto.user.UserResponse;
 import com.taskmanagement.mapper.UserMapper;
 import com.taskmanagement.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+
 import com.taskmanagement.dto.user.CreateUserRequest;
 
 import java.util.ArrayList;
@@ -20,16 +23,11 @@ import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.dto.user.UpdateUserRequest;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
-
-    public UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.userMapper = userMapper;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);

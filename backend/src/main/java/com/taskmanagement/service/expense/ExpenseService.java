@@ -1,6 +1,6 @@
 package com.taskmanagement.service.expense;
-
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -22,8 +22,11 @@ import com.taskmanagement.service.cache.ExpenseCacheService;
 import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.utils.SecurityUtils;
 
-    @Service
-    public class ExpenseService {
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class ExpenseService {
         private final ExpenseRepository expenseRepository;
         private final ExpenseMapper expenseMapper;
         private final UserRepository userRepository;
@@ -31,16 +34,6 @@ import com.taskmanagement.utils.SecurityUtils;
         private final SecurityUtils securityUtils;
         private final TaskCacheService taskCacheService;
         private final ExpenseCacheService expenseCacheService;
-
-        public ExpenseService(ExpenseCacheService expenseCacheService, TaskCacheService taskCacheService,ExpenseRepository expenseRepository, ExpenseMapper expenseMapper, SecurityUtils securityUtils, UserRepository userRepository, TaskRepository taskRepository) {
-            this.expenseMapper = expenseMapper;
-            this.expenseRepository = expenseRepository;
-            this.securityUtils = securityUtils;
-            this.userRepository = userRepository;
-            this.taskRepository = taskRepository;
-            this.taskCacheService = taskCacheService;
-            this.expenseCacheService = expenseCacheService;
-        }
 
         private Expense ensureExpenseAvailable(Long userId, Long id) {
             return expenseRepository.findByIdAndUserId(id, userId)
@@ -68,6 +61,10 @@ import com.taskmanagement.utils.SecurityUtils;
 
             expenseRepository.save(expense);
 
+            if (expense.getTask() != null) {
+                taskCacheService.evict(expense.getTask().getId());
+            }
+
             ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
             return Response.success(response, "Expense created successfully!");
         }
@@ -82,8 +79,20 @@ import com.taskmanagement.utils.SecurityUtils;
 
         public Response<ExpenseResponse> getExpenseById(Long id) {
             CustomUserDetails currentUser = securityUtils.getCurrentUser();
+
+            Optional<ExpenseResponse> cached = expenseCacheService.get(id);
+
+            if(cached.isPresent()){
+                return Response.success(cached.get(), "Expense data retrieved successfully!");
+            }
+
+
             Expense expense = ensureExpenseAvailable(currentUser.getId(), id);
-            return Response.success(expenseMapper.toExpenseResponse(expense), "Expense data retrieved successfully!");
+            ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
+
+            expenseCacheService.put(response);
+
+            return Response.success(response, "Expense data retrieved successfully!");
         }
 
         public Response<ExpenseResponse> updateExpense(Long id, UpdateExpenseRequest request) {
@@ -120,6 +129,11 @@ import com.taskmanagement.utils.SecurityUtils;
             }
 
             expenseRepository.save(expense);
+            expenseCacheService.evict(id);
+
+            if (expense.getTask() != null) {
+                taskCacheService.evict(expense.getTask().getId());
+            }
             return Response.success(expenseMapper.toExpenseResponse(expense), "Expense updated successfully!");
         }
 
@@ -127,6 +141,10 @@ import com.taskmanagement.utils.SecurityUtils;
             CustomUserDetails currentUser = securityUtils.getCurrentUser();
             Expense expense = ensureExpenseAvailable(currentUser.getId(), id);
             expenseRepository.delete(expense);
+            expenseCacheService.evict(id);
+            if (expense.getTask() != null) {
+                taskCacheService.evict(expense.getTask().getId());
+            }
             return Response.success(null, "Expense deleted successfully!");
         }
 
@@ -134,9 +152,16 @@ import com.taskmanagement.utils.SecurityUtils;
             CustomUserDetails currentUser = securityUtils.getCurrentUser();
             Expense expense = ensureExpenseAvailable(currentUser.getId(), id);
             if(expense.getTask()==null) throw new ResourceNotFoundException("Expense already not linked to any task!");
+
+            Long taskId = expense.getTask().getId();
+
             expense.setTask(null);
             ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
             expenseRepository.save(expense);
+
+            expenseCacheService.evict(id);
+            taskCacheService.evict(taskId);
+            
             return Response.success(response, "Expense unlinked successfully!");
         }
     }

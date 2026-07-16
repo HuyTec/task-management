@@ -33,7 +33,10 @@ import com.taskmanagement.service.cache.ExpenseCacheService;
 import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.utils.SecurityUtils;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class TaskService {
     private final TaskCacheService taskCacheService;
     private final ExpenseCacheService expenseCacheService;
@@ -43,16 +46,6 @@ public class TaskService {
     private final TaskMapper taskMapper;
     private final ExpenseMapper expenseMapper;
     private final SecurityUtils securityUtils;
-    public TaskService(ExpenseCacheService expenseCacheService, TaskCacheService taskCacheService, UserRepository userRepository, TaskRepository taskRepository, ExpenseRepository expenseRepository, TaskMapper taskMapper, ExpenseMapper expenseMapper, SecurityUtils securityUtils){
-        this.userRepository = userRepository;
-        this.taskRepository = taskRepository;
-        this.expenseRepository = expenseRepository;
-        this.taskMapper = taskMapper;
-        this.expenseMapper = expenseMapper;
-        this.securityUtils = securityUtils;
-        this.taskCacheService = taskCacheService;
-        this.expenseCacheService = expenseCacheService;
-    }
 
     // private Task ensureTaskAvailable(boolean , Long userId, Long id) {
     //     return  ? taskRepository.findById(id)
