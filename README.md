@@ -29,8 +29,6 @@ Task Management is a full-stack web application that helps users manage tasks, t
 - Docker Compose
 - PostgreSQL container
 - Redis container
-- n8n (workflow automation)
-- Ollama (optional local LLM)
 
 ## Current Architecture
 The application is designed with a simple client-server architecture, with the following main components:
