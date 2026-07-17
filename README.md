@@ -38,7 +38,6 @@ flowchart LR
     A[React Frontend] --> B[Spring Boot API]
     B --> C[(PostgreSQL)]
     B --> D[(Redis)]
-    B --> E[Ollama / n8n]
 ```
 
 - Frontend: provides the user interface and calls the backend API.
