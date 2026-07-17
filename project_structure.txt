@@ -44,10 +44,16 @@ task-management/
 
 
 #kích hoạt Springboot
+```
 cd backend
 mvn spring-boot:run 
-
+```
 #kích hoạt các service từ docker-compose
+```
 docker-compose up -d
 docker-compose ps
-
+```
+#Mở redis-cli của projetc trên command promt
+```
+docker exec -it taskmanagement_redis redis-cli
+```

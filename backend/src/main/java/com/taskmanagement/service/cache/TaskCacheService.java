@@ -18,7 +18,7 @@ public class TaskCacheService {
     private static final String KEY_PREFIX = "task:";
     private static final Duration TTL = Duration.ofMinutes(30);
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, TaskDetailResponse> redisTemplate;
 
 
     private String buildKey(Long taskId) {
@@ -27,26 +27,22 @@ public class TaskCacheService {
 
     public Optional<TaskDetailResponse> get(Long taskId) {
         try {
-            Object value = redisTemplate.opsForValue().get(buildKey(taskId));
-
-            if (value instanceof TaskDetailResponse task) {
-                return Optional.of(task);
-            }
-
-            return Optional.empty();
+            TaskDetailResponse value = redisTemplate.opsForValue().get(buildKey(taskId));
+            return Optional.ofNullable(value);
 
         } catch (SerializationException ex) {
-            // Cache chứa dữ liệu cũ/hỏng không deserialize được -> coi như cache-miss, dọn key hỏng
             redisTemplate.delete(buildKey(taskId));
             return Optional.empty();
         }
     }
 
     public void put(TaskDetailResponse task) {
+        System.out.println("Put function excuted");
         redisTemplate.opsForValue().set(buildKey(task.id()),task,TTL);
     }
 
     public void evict(Long taskId) {
+         System.out.println("Evict funtion excuted");
         redisTemplate.delete(buildKey(taskId));
     }
 

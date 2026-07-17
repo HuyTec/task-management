@@ -1,6 +1,7 @@
 package com.taskmanagement.service.cache;
 
 import com.taskmanagement.dto.expense.ExpenseResponse;
+import com.taskmanagement.dto.task.TaskDetailResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,25 +19,19 @@ public class ExpenseCacheService {
     private static final String KEY_PREFIX = "expense:";
     private static final Duration TTL = Duration.ofMinutes(30);
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, ExpenseResponse> redisTemplate;
 
     private String buildKey(Long taskId) {
         return KEY_PREFIX + taskId;
     }
 
-    public Optional<ExpenseResponse> get(Long expenseId) {
+    public Optional<ExpenseResponse> get(Long taskId) {
         try {
-            Object value = redisTemplate.opsForValue().get(buildKey(expenseId));
-
-            if (value instanceof ExpenseResponse task) {
-                return Optional.of(task);
-            }
-
-            return Optional.empty();
+            ExpenseResponse value = redisTemplate.opsForValue().get(buildKey(taskId));
+            return Optional.ofNullable(value);
 
         } catch (SerializationException ex) {
-            // Cache chứa dữ liệu cũ/hỏng không deserialize được -> coi như cache-miss, dọn key hỏng
-            redisTemplate.delete(buildKey(expenseId));
+            redisTemplate.delete(buildKey(taskId));
             return Optional.empty();
         }
     }
