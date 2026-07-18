@@ -2,12 +2,16 @@ package com.taskmanagement.service.expense;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.taskmanagement.dto.Response;
 import com.taskmanagement.dto.expense.CreateExpenseRequest;
 import com.taskmanagement.dto.expense.ExpenseResponse;
 import com.taskmanagement.dto.expense.UpdateExpenseRequest;
+import com.taskmanagement.event.ExpenseCacheEvictEvent;
+import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.mapper.ExpenseMapper;
@@ -25,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final ExpenseMapper expenseMapper;
@@ -33,6 +38,7 @@ public class ExpenseService {
     private final SecurityUtils securityUtils;
     private final TaskCacheService taskCacheService;
     private final ExpenseCacheService expenseCacheService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private Expense ensureExpenseAvailable(Long userId, Long id) {
         return expenseRepository.findByIdAndUserId(id, userId)
@@ -68,6 +74,7 @@ public class ExpenseService {
         return Response.success(response, "Expense created successfully!");
     }
 
+    @Transactional(readOnly = true)
     public Response<List<ExpenseResponse>> getMyExpenses() {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
@@ -76,6 +83,7 @@ public class ExpenseService {
         return Response.success(responses, "All expenses retrieved successfully!");
     }
 
+    @Transactional(readOnly = true)
     public Response<ExpenseResponse> getExpenseById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
@@ -128,10 +136,10 @@ public class ExpenseService {
         }
 
         expenseRepository.save(expense);
-        expenseCacheService.evict(id);
+        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(id));
 
         if (expense.getTask() != null) {
-            taskCacheService.evict(expense.getTask().getId());
+            eventPublisher.publishEvent(new TaskCacheEvictEvent(expense.getTask().getId()));
         }
         return Response.success(expenseMapper.toExpenseResponse(expense), "Expense updated successfully!");
     }
@@ -144,9 +152,9 @@ public class ExpenseService {
         Long taskId = (task != null) ? task.getId() : null;
 
         expenseRepository.delete(expense);
-        expenseCacheService.evict(id);
+        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(id));
         if (taskId != null) {
-            taskCacheService.evict(taskId);
+            eventPublisher.publishEvent(new TaskCacheEvictEvent(taskId));
         }
 
         return Response.success(null, "Expense deleted successfully!");
@@ -163,8 +171,8 @@ public class ExpenseService {
         ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
         expenseRepository.save(expense);
 
-        expenseCacheService.evict(id);
-        taskCacheService.evict(taskId);
+        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(id));
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(taskId));
         
         return Response.success(response, "Expense unlinked successfully!");
     }

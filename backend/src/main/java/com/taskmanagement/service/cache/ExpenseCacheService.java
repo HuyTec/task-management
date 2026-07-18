@@ -1,7 +1,6 @@
 package com.taskmanagement.service.cache;
 
 import com.taskmanagement.dto.expense.ExpenseResponse;
-import com.taskmanagement.dto.task.TaskDetailResponse;
 
 import lombok.RequiredArgsConstructor;
 

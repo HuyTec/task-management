@@ -45,13 +45,4 @@ public class TaskCacheService {
          System.out.println("Evict funtion excuted");
         redisTemplate.delete(buildKey(taskId));
     }
-
-    // public boolean exists(Long taskId) {
-    //     // TODO: Check cache existence
-    //     return false;
-    // }
-
-    // public void clear() {
-    //     // TODO: (Optional) Clear all task cache
-    // }
 }

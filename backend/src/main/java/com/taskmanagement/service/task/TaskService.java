@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.taskmanagement.dto.Response;
@@ -15,6 +16,8 @@ import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.task.UpdateTaskRequest;
+import com.taskmanagement.event.ExpenseCacheEvictEvent;
+import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.exception.ResourceNotFoundException;
@@ -33,10 +36,13 @@ import com.taskmanagement.service.cache.ExpenseCacheService;
 import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.utils.SecurityUtils;
 
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class TaskService {
     private final TaskCacheService taskCacheService;
     private final ExpenseCacheService expenseCacheService;
@@ -46,6 +52,7 @@ public class TaskService {
     private final TaskMapper taskMapper;
     private final ExpenseMapper expenseMapper;
     private final SecurityUtils securityUtils;
+        private final ApplicationEventPublisher eventPublisher;
 
     // private Task ensureTaskAvailable(boolean , Long userId, Long id) {
     //     return  ? taskRepository.findById(id)
@@ -59,6 +66,7 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
     }
 
+    @Transactional(readOnly=true)
     public Response<TaskDetailResponse> getTaskById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
@@ -79,6 +87,7 @@ public class TaskService {
         return Response.success(response, "Task data retrieved successfully!");
     }
 
+    @Transactional(readOnly = true)
     public Response<List<TaskResponse>> getAllTask() {
         boolean isAdmin = securityUtils.isAdmin(securityUtils.getAuthentication());
         if(!isAdmin) 
@@ -104,6 +113,7 @@ public class TaskService {
         return Response.success(taskResponses, "Task data retrieved successfully!");
     }
 
+    @Transactional(readOnly = true)
     public Response<List<TaskResponse>> getMyTask() {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
@@ -168,7 +178,7 @@ public class TaskService {
         }
 
         taskRepository.save(task);
-        taskCacheService.evict(id); //Xóa cache
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(id));
         
         List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
         List<ExpenseResponse> expenseResponses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
@@ -195,8 +205,8 @@ public class TaskService {
         taskRepository.delete(task);
 
         // Evict SAU KHI DB đã thay đổi thành công
-        taskCacheService.evict(id);
-        expenseIds.forEach(expenseCacheService::evict);
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(id));
+        expenseIds.forEach(expenseId -> eventPublisher.publishEvent(new ExpenseCacheEvictEvent(expenseId)));
 
         return Response.success(null, "Task deleted successfully!");
     }
