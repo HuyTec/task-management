@@ -14,11 +14,16 @@ import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.Claims;
 
 @Service
 public class JwtService {
+
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
 
     @Value("${jwt.secret}")
     private String secretKey;
@@ -32,6 +37,7 @@ public class JwtService {
     public String generateToken(String username) {
         return Jwts.builder()
                 .subject(username)
+                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignKey())
@@ -41,6 +47,7 @@ public class JwtService {
     public String generateRefreshToken(String username) {
         return Jwts.builder()
                 .subject(username)
+                .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
                 .signWith(getSignKey())
@@ -67,6 +74,14 @@ public class JwtService {
         String username = extractUsername(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
+
+    public boolean isAccessToken(String token) {
+        return ACCESS_TOKEN_TYPE.equals(extractAllClaims(token).get(TOKEN_TYPE_CLAIM, String.class));
+    }
+
+    public boolean isRefreshToken(String token) {
+        return REFRESH_TOKEN_TYPE.equals(extractAllClaims(token).get(TOKEN_TYPE_CLAIM, String.class));
+    }
     private boolean isTokenExpired(String token) { //Read token expiration
         return extractExpiration(token).before(new Date());
     }
@@ -79,7 +94,7 @@ public class JwtService {
             if (decoded.length >= 32) {
                 return Keys.hmacShaKeyFor(decoded);
             }
-        } catch (IllegalArgumentException ignored) {
+        } catch (DecodingException ignored) {
             // Fall back to plain-text secret handling below
         }
 

@@ -5,10 +5,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.security.access.AccessDeniedException;
+import io.jsonwebtoken.JwtException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -26,6 +28,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Response<Void>> handleBadCredentials(BadCredentialsException ex) {
         return build(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Response<Void>> handleBadRequest(BadRequestException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler({JwtException.class, UsernameNotFoundException.class})
+    public ResponseEntity<Response<Void>> handleInvalidToken(RuntimeException ex) {
+        return build(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

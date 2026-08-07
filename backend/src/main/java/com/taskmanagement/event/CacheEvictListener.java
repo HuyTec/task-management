@@ -17,11 +17,11 @@ public class CacheEvictListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTaskEvict(TaskCacheEvictEvent event) {
-        taskCacheService.evict(event.taskId());
+        taskCacheService.evict(event.userId(), event.taskId());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onExpenseEvict(ExpenseCacheEvictEvent event) {
-        expenseCacheService.evict(event.expenseId());
+        expenseCacheService.evict(event.userId(), event.expenseId());
     }
 }

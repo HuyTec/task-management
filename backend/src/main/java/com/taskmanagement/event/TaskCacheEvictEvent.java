@@ -1,5 +1,5 @@
 package com.taskmanagement.event;
 
-public record TaskCacheEvictEvent(Long taskId) {
+public record TaskCacheEvictEvent(Long userId, Long taskId) {
 
 }

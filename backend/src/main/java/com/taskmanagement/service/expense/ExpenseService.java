@@ -23,7 +23,6 @@ import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
 import com.taskmanagement.service.cache.ExpenseCacheService;
-import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 
@@ -36,7 +35,6 @@ public class ExpenseService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final SecurityUtils securityUtils;
-    private final TaskCacheService taskCacheService;
     private final ExpenseCacheService expenseCacheService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -67,7 +65,7 @@ public class ExpenseService {
         expenseRepository.save(expense);
 
         if (expense.getTask() != null) {
-            taskCacheService.evict(expense.getTask().getId());
+            eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), expense.getTask().getId()));
         }
 
         ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
@@ -87,7 +85,7 @@ public class ExpenseService {
     public Response<ExpenseResponse> getExpenseById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
-        Optional<ExpenseResponse> cached = expenseCacheService.get(id);
+        Optional<ExpenseResponse> cached = expenseCacheService.get(currentUser.getId(), id);
 
         if(cached.isPresent()){
             return Response.success(cached.get(), "Expense data retrieved successfully!");
@@ -97,7 +95,7 @@ public class ExpenseService {
         Expense expense = ensureExpenseAvailable(currentUser.getId(), id);
         ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
 
-        expenseCacheService.put(response);
+        expenseCacheService.put(currentUser.getId(), response);
 
         return Response.success(response, "Expense data retrieved successfully!");
     }
@@ -136,10 +134,10 @@ public class ExpenseService {
         }
 
         expenseRepository.save(expense);
-        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(id));
+        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(currentUser.getId(), id));
 
         if (expense.getTask() != null) {
-            eventPublisher.publishEvent(new TaskCacheEvictEvent(expense.getTask().getId()));
+            eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), expense.getTask().getId()));
         }
         return Response.success(expenseMapper.toExpenseResponse(expense), "Expense updated successfully!");
     }
@@ -152,9 +150,9 @@ public class ExpenseService {
         Long taskId = (task != null) ? task.getId() : null;
 
         expenseRepository.delete(expense);
-        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(id));
+        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(currentUser.getId(), id));
         if (taskId != null) {
-            eventPublisher.publishEvent(new TaskCacheEvictEvent(taskId));
+            eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), taskId));
         }
 
         return Response.success(null, "Expense deleted successfully!");
@@ -171,8 +169,8 @@ public class ExpenseService {
         ExpenseResponse response = expenseMapper.toExpenseResponse(expense);
         expenseRepository.save(expense);
 
-        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(id));
-        eventPublisher.publishEvent(new TaskCacheEvictEvent(taskId));
+        eventPublisher.publishEvent(new ExpenseCacheEvictEvent(currentUser.getId(), id));
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), taskId));
         
         return Response.success(response, "Expense unlinked successfully!");
     }

@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jakarta.validation.constraints.NotBlank;
 
@@ -53,7 +54,7 @@ public class Task {
     private LocalDateTime updatedAt;
 
     @Column
-    private LocalDateTime dueDate;
+    private LocalDate dueDate;
 
     @PrePersist
     protected void onCreate(){

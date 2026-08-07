@@ -50,7 +50,8 @@ public class AuthService {
         
         authManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
 
-        User user =  userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
+        User user = userRepository.findByUsernameAndIsDeletedFalse(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
 
         String accessToken = jwtService.generateToken(username);
         String refreshToken = jwtService.generateRefreshToken(username);
@@ -96,11 +97,12 @@ public class AuthService {
         String username = jwtService.extractUsername(refreshToken);
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
         
-        if (!jwtService.isTokenValid(refreshToken, userDetails)){
-            throw new BadRequestException("Refresh token has expired or fobidden!");
+        if (!jwtService.isRefreshToken(refreshToken) || !jwtService.isTokenValid(refreshToken, userDetails)){
+            throw new BadRequestException("Invalid or expired refresh token");
         }
 
-        User user =  userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
+        User user = userRepository.findByUsernameAndIsDeletedFalse(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
         String accessToken = jwtService.generateToken(username);
         String newRefreshToken = jwtService.generateRefreshToken(username);
         UserResponse userResponse = userMapper.toUserResponse(user);

@@ -1,4 +1,4 @@
 package com.taskmanagement.event;
 
-public record ExpenseCacheEvictEvent(Long expenseId) {
+public record ExpenseCacheEvictEvent(Long userId, Long expenseId) {
 }

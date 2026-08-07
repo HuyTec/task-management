@@ -27,7 +27,7 @@ public class AuthController {
     private final AuthService authService;
 
     @Value ("${jwt.refresh-expiration}")
-    private int refreshExpiration;
+    private long refreshExpiration;
 
     @Value("${app.cookie.secure:true}")
     private boolean cookieSecure;
@@ -40,7 +40,7 @@ public class AuthController {
         cookie.setHttpOnly(true);
         cookie.setSecure(cookieSecure);
         cookie.setPath("/" );
-        cookie.setMaxAge(refreshExpiration);
+        cookie.setMaxAge(Math.toIntExact(refreshExpiration / 1000));
         response.addCookie(cookie);
     }
 

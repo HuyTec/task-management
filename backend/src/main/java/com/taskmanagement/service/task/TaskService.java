@@ -32,7 +32,6 @@ import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.repository.projection.TaskTotalProjection;
 import com.taskmanagement.security.CustomUserDetails;
-import com.taskmanagement.service.cache.ExpenseCacheService;
 import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.utils.SecurityUtils;
 
@@ -45,7 +44,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class TaskService {
     private final TaskCacheService taskCacheService;
-    private final ExpenseCacheService expenseCacheService;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final ExpenseRepository expenseRepository;
@@ -70,7 +68,7 @@ public class TaskService {
     public Response<TaskDetailResponse> getTaskById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
-        Optional<TaskDetailResponse> cached = taskCacheService.get(id);
+        Optional<TaskDetailResponse> cached = taskCacheService.get(currentUser.getId(), id);
         if(cached.isPresent()){
             return Response.success(cached.get(),"Task data retrieved successfully!");
         }
@@ -82,7 +80,7 @@ public class TaskService {
         Double total = expenses.stream().mapToDouble(Expense::getAmount).sum();
         TaskDetailResponse response = taskMapper.toTaskDetailResponse(task, expenseResponses, total);
 
-        taskCacheService.put(response);
+        taskCacheService.put(currentUser.getId(), response);
 
         return Response.success(response, "Task data retrieved successfully!");
     }
@@ -178,7 +176,7 @@ public class TaskService {
         }
 
         taskRepository.save(task);
-        eventPublisher.publishEvent(new TaskCacheEvictEvent(id));
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), id));
         
         List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
         List<ExpenseResponse> expenseResponses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
@@ -205,8 +203,8 @@ public class TaskService {
         taskRepository.delete(task);
 
         // Evict SAU KHI DB đã thay đổi thành công
-        eventPublisher.publishEvent(new TaskCacheEvictEvent(id));
-        expenseIds.forEach(expenseId -> eventPublisher.publishEvent(new ExpenseCacheEvictEvent(expenseId)));
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), id));
+        expenseIds.forEach(expenseId -> eventPublisher.publishEvent(new ExpenseCacheEvictEvent(currentUser.getId(), expenseId)));
 
         return Response.success(null, "Task deleted successfully!");
     }
