@@ -1,20 +1,28 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
-/**
- * App.js - Component gốc của ứng dụng React
- * Đây là nơi cấu hình routing (điều hướng giữa các trang)
- */
+import DashboardPage from './pages/DashboardPage'
+import LoginPage from './pages/LoginPage'
+
+function RequireAuth({ children }) {
+  const accessToken = localStorage.getItem('accessToken')
+  return accessToken ? children : <Navigate to="/login" replace />
+}
+
 function App() {
   return (
-    <Router>
-      <div className="app">
-        {/* Routes sẽ được bổ sung khi tạo các Page component */}
-        <Routes>
-          <Route path="/" element={<div><h1>Task Management App</h1><p>🚀 Frontend đang chạy!</p></div>} />
-        </Routes>
-      </div>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <DashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   )
 }
 

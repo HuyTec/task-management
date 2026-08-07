@@ -1,15 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
+import { BrowserRouter } from 'react-router-dom'
 
-/**
- * index.js - Entry point của ứng dụng React
- * Đây là file đầu tiên được Vite gọi khi khởi động
- * Nó "gắn" (mount) toàn bộ ứng dụng React vào thẻ <div id="root"> trong public/index.html
- */
-const root = ReactDOM.createRoot(document.getElementById('root'))
-root.render(
+import App from './App'
+import './styles.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
-  </React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>,
 )
