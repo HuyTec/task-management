@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { login } from '../api/authApi'
+import PasswordField from '../components/auth/PasswordField'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -55,18 +56,24 @@ function LoginPage() {
               <label htmlFor="username">Username</label>
               <input id="username" name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Enter your username" autoComplete="username" required />
             </div>
-            <div className="field-group">
-              <div className="field-label-row"><label htmlFor="password">Password</label><span>Minimum 8 characters</span></div>
-              <input id="password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" minLength="8" required />
-            </div>
-            {error && <p className="form-error" role="alert">{error}</p>}
+            <PasswordField
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+            />
+            {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
             <button className="primary-button" type="submit" disabled={isSubmitting}>
-              <span>{isSubmitting ? 'Signing in…' : 'Sign in'}</span><span aria-hidden="true">?</span>
+              <span>{isSubmitting ? 'Signing inâ€¦' : 'Sign in'}</span>
             </button>
           </form>
-          <p className="auth-note">New here? <span>Registration will be available next.</span></p>
+          <p className="auth-note">
+            New here?{' '}
+            <button className="text-button" type="button" onClick={() => navigate('/register')}>
+              Create an account
+            </button>
+          </p>
         </div>
-        <p className="auth-footer">Task Management · Built for steady progress</p>
+        <p className="auth-footer">Task Management Â· Built for steady progress</p>
       </section>
     </main>
   )

@@ -1,19 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import AppHeader from '../components/layout/AppHeader'
 
 function DashboardPage() {
-  const navigate = useNavigate()
-
-  function handleSignOut() {
-    localStorage.removeItem('accessToken')
-    navigate('/login', { replace: true })
-  }
-
   return (
     <main className="dashboard-shell">
-      <header className="dashboard-header">
-        <div className="dashboard-brand"><span className="brand-mark brand-mark--small" aria-hidden="true">HT</span><div><strong>Task Management</strong><span>Personal workspace</span></div></div>
-        <button className="text-button" type="button" onClick={handleSignOut}>Sign out</button>
-      </header>
+      <AppHeader />
       <section className="dashboard-content">
         <p className="eyebrow">Workspace ready</p>
         <h1>Welcome back.</h1>

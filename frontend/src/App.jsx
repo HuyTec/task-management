@@ -1,7 +1,16 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import AdminGuard from './components/admin/AdminGuard'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminExpensesPage from './pages/admin/AdminExpensesPage'
+import AdminLoginPage from './pages/admin/AdminLoginPage'
+import AdminTasksPage from './pages/admin/AdminTasksPage'
+import AdminUsersPage from './pages/admin/AdminUsersPage'
 import DashboardPage from './pages/DashboardPage'
+import HistoryPage from './pages/HistoryPage'
 import LoginPage from './pages/LoginPage'
+import ProfilePage from './pages/ProfilePage'
+import RegisterPage from './pages/RegisterPage'
 
 function RequireAuth({ children }) {
   const accessToken = localStorage.getItem('accessToken')
@@ -13,6 +22,41 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminGuard>
+            <AdminDashboardPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <AdminGuard>
+            <AdminUsersPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/tasks"
+        element={
+          <AdminGuard>
+            <AdminTasksPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/expenses"
+        element={
+          <AdminGuard>
+            <AdminExpensesPage />
+          </AdminGuard>
+        }
+      />
       <Route
         path="/dashboard"
         element={
@@ -21,6 +65,23 @@ function App() {
           </RequireAuth>
         }
       />
+      <Route
+        path="/history"
+        element={
+          <RequireAuth>
+            <HistoryPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <RequireAuth>
+            <ProfilePage />
+          </RequireAuth>
+        }
+      />
+      <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )

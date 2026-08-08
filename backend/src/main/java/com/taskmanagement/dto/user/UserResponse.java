@@ -9,6 +9,7 @@
         String displayName,
         String email,
         UserRole role,
+        boolean deactivated,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
     ) {

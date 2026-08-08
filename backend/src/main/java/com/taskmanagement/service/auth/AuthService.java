@@ -50,7 +50,7 @@ public class AuthService {
         
         authManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
 
-        User user = userRepository.findByUsernameAndIsDeletedFalse(username)
+        User user = userRepository.findByUsernameAndIsDeactivatedFalse(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
 
         String accessToken = jwtService.generateToken(username);
@@ -101,7 +101,7 @@ public class AuthService {
             throw new BadRequestException("Invalid or expired refresh token");
         }
 
-        User user = userRepository.findByUsernameAndIsDeletedFalse(username)
+        User user = userRepository.findByUsernameAndIsDeactivatedFalse(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found " + username));
         String accessToken = jwtService.generateToken(username);
         String newRefreshToken = jwtService.generateRefreshToken(username);

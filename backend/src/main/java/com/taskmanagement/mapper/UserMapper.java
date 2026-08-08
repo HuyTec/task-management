@@ -14,7 +14,7 @@ public interface UserMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "deleted", ignore = true)
+    @Mapping(target = "deactivated", ignore = true)
     @Mapping(target = "role", ignore = true)
 
     public User toUser(CreateUserRequest request);

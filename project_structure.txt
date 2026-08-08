@@ -57,3 +57,13 @@ docker-compose ps
 ```
 docker exec -it taskmanagement_redis redis-cli
 ```
+
+Project files:
+tree /F /A
+Danh sách file gọn hơn:
+rg --files
+Chỉ xem frontend:
+rg --files frontend/src
+Maven dependency tree:
+cd backend
+.\mvnw.cmd dependency:tree

@@ -49,7 +49,7 @@ public class User {
     @Column
     private LocalDateTime updatedAt;
     
-    private boolean isDeleted = false;
+    private boolean isDeactivated = false;
 
     //thêm createdAt và updatedAt:
     @PrePersist
@@ -66,10 +66,10 @@ public class User {
     }
 
     public void activate(){
-        this.isDeleted = false;
+        this.isDeactivated = false;
     }
 
     public void deactivate(){
-        this.isDeleted = true;
+        this.isDeactivated = true;
     }
 }

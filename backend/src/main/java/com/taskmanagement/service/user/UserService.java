@@ -174,12 +174,25 @@ public class UserService {
 
     public Response<UserResponse> deactivateUser(Long id) {
         User user = findUserOrThrow(id);
+        String currentUsername = SecurityContextHolder.getContext()
+            .getAuthentication()
+            .getName();
+
+        if (user.getUsername().equals(currentUsername)) {
+            throw new ForbiddenException("You cannot deactivate your own account.");
+        }
+        if (user.isDeactivated()) {
+            throw new BadRequestException("User is already deactivated.");
+        }
         user.deactivate();
         return saveAndReturn(user, "User deactivated!");
     }
 
     public Response<UserResponse> activateUser(Long id) {
         User user = findUserOrThrow(id);
+        if (!user.isDeactivated()) {
+            throw new BadRequestException("User is not deactivated.");
+        }
         user.activate();
         return saveAndReturn(user, "User activated!");
     }
