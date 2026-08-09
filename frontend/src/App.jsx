@@ -7,10 +7,14 @@ import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminTasksPage from './pages/admin/AdminTasksPage'
 import AdminUsersPage from './pages/admin/AdminUsersPage'
 import DashboardPage from './pages/DashboardPage'
+import ExpenseDetailPage from './pages/ExpenseDetailPage'
+import ExpensesPage from './pages/ExpensesPage'
 import HistoryPage from './pages/HistoryPage'
 import LoginPage from './pages/LoginPage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
+import TasksPage from './pages/TasksPage'
+import TaskDetailPage from './pages/TaskDetailPage'
 
 function RequireAuth({ children }) {
   const accessToken = localStorage.getItem('accessToken')
@@ -81,6 +85,10 @@ function App() {
           </RequireAuth>
         }
       />
+      <Route path="/tasks" element={<RequireAuth><TasksPage /></RequireAuth>} />
+      <Route path="/tasks/:taskId" element={<RequireAuth><TaskDetailPage /></RequireAuth>} />
+      <Route path="/expenses" element={<RequireAuth><ExpensesPage /></RequireAuth>} />
+      <Route path="/expenses/:expenseId" element={<RequireAuth><ExpenseDetailPage /></RequireAuth>} />
       <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 import AppHeader from '../components/layout/AppHeader'
 
 function DashboardPage() {
@@ -5,13 +7,13 @@ function DashboardPage() {
     <main className="dashboard-shell">
       <AppHeader />
       <section className="dashboard-content">
-        <p className="eyebrow">Workspace ready</p>
+        <p className="eyebrow">Personal workspace</p>
         <h1>Welcome back.</h1>
-        <p className="dashboard-lead">Authentication is connected. Task and expense modules can now be added to this workspace one feature at a time.</p>
+        <p className="dashboard-lead">Plan your work, keep personal costs organized and maintain your account from one calm workspace.</p>
         <div className="dashboard-grid">
-          <article className="metric-card metric-card--accent"><span>Next milestone</span><strong>Task dashboard</strong><p>Build the first real feature on top of this authenticated shell.</p></article>
-          <article className="metric-card"><span>Foundation</span><strong>Authentication</strong><p>Login, protected routing and a clear error state are in place.</p></article>
-          <article className="metric-card"><span>Design system</span><strong>Ready to extend</strong><p>Shared colors, spacing, controls and responsive rules are defined.</p></article>
+          <Link className="metric-card metric-card--accent metric-card--link" to="/tasks"><span>Workflow</span><strong>Task board</strong><p>Create, prioritize and move work across the Kanban board.</p></Link>
+          <Link className="metric-card metric-card--link" to="/expenses"><span>Personal finance</span><strong>Expense ledger</strong><p>Record private costs and connect them to relevant tasks.</p></Link>
+          <Link className="metric-card metric-card--link" to="/profile"><span>Account</span><strong>Your profile</strong><p>Review and maintain the information attached to your account.</p></Link>
         </div>
       </section>
     </main>

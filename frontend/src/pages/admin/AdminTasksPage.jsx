@@ -4,14 +4,6 @@ import { getAllTasks } from '../../api/taskApi'
 import AdminHeader from '../../components/admin/AdminHeader'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 
-function formatTotal(total) {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(total || 0)
-}
-
 function formatDate(value) {
   if (!value) return 'Not set'
 
@@ -71,23 +63,19 @@ function AdminTasksPage() {
             <table className="dashboard-table">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Title</th>
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Due date</th>
-                  <th>Expense total</th>
                 </tr>
               </thead>
               <tbody>
                 {tasks.map((task) => (
                   <tr key={task.id} className={task.priority === 'URGENT' ? 'row--accent' : ''}>
-                    <td>#{task.id}</td>
                     <td>{task.title}</td>
                     <td>{task.status}</td>
                     <td>{task.priority}</td>
                     <td>{formatDate(task.dueDate)}</td>
-                    <td>{formatTotal(task.total)}</td>
                   </tr>
                 ))}
               </tbody>

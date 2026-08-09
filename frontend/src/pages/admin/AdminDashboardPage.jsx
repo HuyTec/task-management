@@ -58,7 +58,7 @@ function AdminDashboardPage() {
           <div className="dashboard-grid">
             <article className="metric-card metric-card--accent"><span>Users</span><strong>{summary.users}</strong><p>Accounts visible to the administrator.</p></article>
             <article className="metric-card"><span>Tasks</span><strong>{summary.tasks}</strong><p>Tasks across the complete system.</p></article>
-            <article className="metric-card"><span>Expenses</span><strong>API pending</strong><p>The backend does not yet expose an administrator expense listing.</p></article>
+            <article className="metric-card"><span>Expenses</span><strong>Private by design</strong><p>Personal expense details are intentionally excluded from administration.</p></article>
           </div>
         )}
       </section>

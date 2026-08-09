@@ -9,6 +9,8 @@ function AppHeader() {
       homePath="/dashboard"
       navigation={[
         { label: 'Home', to: '/dashboard' },
+        { label: 'Tasks', to: '/tasks' },
+        { label: 'Expenses', to: '/expenses' },
         { label: 'Profile', to: '/profile' },
       ]}
       signOutPath="/login"
