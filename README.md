@@ -10,6 +10,7 @@ Task Management is a full-stack web application that helps users manage tasks, t
 - Spring Web / Spring MVC
 - Spring Security + JWT
 - Spring Data JPA
+- Flyway
 - PostgreSQL
 - Redis
 - Validation, Lombok, MapStruct
@@ -102,7 +103,10 @@ npm run dev
 - Backend API: http://localhost:8080
 
 ## Configuration
-Main configuration values can be edited in backend/src/main/resources/application.properties:
+Copy `.env.example` into your shell or IDE run configuration, then replace every
+placeholder secret. Shared defaults live in
+`backend/src/main/resources/application.properties`; local secrets belong in the
+ignored `application-local.properties` file.
 
 - SERVER_PORT
 - SPRING_DATASOURCE_URL
@@ -115,6 +119,27 @@ By default, the app uses:
 - PostgreSQL at localhost:5432
 - Redis at localhost:6379
 - A default admin account is created during startup
+
+## Database migrations
+
+Flyway is the only component that changes the schema. Hibernate uses
+`ddl-auto=validate`, so startup fails early when the entities and database no
+longer agree.
+
+- A new empty database automatically applies `V1__baseline_schema.sql`.
+- Add future changes as a new migration such as `V2__add_projects.sql`.
+- Never edit a migration after it has been applied to a shared environment.
+
+For a database that already existed before Flyway:
+
+1. Back it up and verify that its `users`, `tasks`, and `expenses` schema matches
+   `V1__baseline_schema.sql`.
+2. Start the backend once with `FLYWAY_BASELINE_ON_MIGRATE=true`. This records
+   version `1` without re-creating the existing tables.
+3. Stop the backend and set `FLYWAY_BASELINE_ON_MIGRATE=false` again.
+
+Do not leave baseline-on-migrate enabled. It removes an important safeguard
+against accidentally targeting the wrong non-empty database.
 
 ## What I learn
 - TBD

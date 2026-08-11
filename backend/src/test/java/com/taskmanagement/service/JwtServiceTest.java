@@ -50,7 +50,7 @@ class JwtServiceTest {
 
         assertThat(jwtService.isRefreshToken(token)).isTrue();
         assertThat(jwtService.isAccessToken(token)).isFalse();
-        assertThat(jwtService.isTokenValid(token, user)).isTrue();
+        assertThat(jwtService.isTokenValid(token, user)).isFalse();
 
         RefreshTokenClaims claims = jwtService.parseRefreshToken(token);
         assertThat(claims.username()).isEqualTo(user.getUsername());

@@ -18,7 +18,6 @@ target/
 # === SPRING BOOT ===
 # File cấu hình nhạy cảm (KHÔNG commit lên Git)
 backend/src/main/resources/application-local.properties
-backend/src/main/resources/application-prod.properties
 
 # === NODE.JS / REACT ===
 frontend/node_modules/
@@ -47,7 +46,6 @@ Thumbs.db
 # === DOCKER ===
 # Không ignore docker-compose nhưng ignore override file cục bộ
 docker-compose.override.yml
-application.properties
 
 # === LOGS ===
 *.log
