@@ -9,3 +9,7 @@ export async function register(account) {
   const response = await apiClient.post('/auth/register', account)
   return response.data.data
 }
+
+export async function logout() {
+  await apiClient.post('/auth/logout')
+}

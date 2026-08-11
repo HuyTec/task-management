@@ -1,9 +1,11 @@
 package com.taskmanagement.filter;
 
 import com.taskmanagement.service.auth.JwtService;
+import com.taskmanagement.service.auth.AuthSessionService;
+import com.taskmanagement.dto.auth.AccessTokenClaims;
 
+import org.springframework.dao.DataAccessException;
 import org.springframework.lang.NonNull;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,43 +22,74 @@ import java.io.IOException;
 import io.jsonwebtoken.JwtException;
 
 @Component
-public class JwtFilter extends OncePerRequestFilter{
+public class JwtFilter extends OncePerRequestFilter {
+
     private final JwtService jwtService;
     private final UserDetailsService userDetailService;
+    private final AuthSessionService authSessionService;
 
-    JwtFilter(JwtService jwtService, UserDetailsService userDetailService) {
+    JwtFilter(JwtService jwtService, UserDetailsService userDetailService, AuthSessionService authSessionService) {
         this.jwtService = jwtService;
         this.userDetailService = userDetailService;
+        this.authSessionService = authSessionService;
     }
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
-        String authHeader =  request.getHeader("Authorization");
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                     @NonNull HttpServletResponse response,
+                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")){
+        String token = extractBearerToken(request);
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
-
-        try {
-            String username = jwtService.extractUsername(token);
-
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailService.loadUserByUsername(username);
-
-                if (jwtService.isAccessToken(token) && jwtService.isTokenValid(token, userDetails)) {
-                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-                }
-            }
-        } catch (JwtException | IllegalArgumentException | AuthenticationException ignored) {
-            SecurityContextHolder.clearContext();
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
+        AccessTokenClaims claims;
+        try {
+            claims = jwtService.parseAccessToken(token);
+        } catch (JwtException | IllegalArgumentException ex) {
+            // Token sai signature/type/expiry/hết hạn -> không set context, để Security tự 401 ở endpoint cần auth
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        boolean sessionActive;
+        try {
+            sessionActive = authSessionService.exists(claims.sessionId());
+        } catch (DataAccessException ex) {
+            // Redis unavailable -> fail-closed
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Service temporarily unavailable\"}");
+            return;
+        }
+
+        if (!sessionActive) {
+            // Session đã bị revoke -> không set context -> Security tự 401
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        UserDetails userDetails = userDetailService.loadUserByUsername(claims.username());
+        UsernamePasswordAuthenticationToken authenticationToken =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
         filterChain.doFilter(request, response);
+    }
+
+    private String extractBearerToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        return authHeader.substring(7);
     }
 }

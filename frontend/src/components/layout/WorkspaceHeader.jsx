@@ -1,11 +1,19 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 
+import { logout } from '../../api/authApi'
+
 function WorkspaceHeader({ mark, title, subtitle, homePath, navigation, signOutPath }) {
   const navigate = useNavigate()
 
-  function handleSignOut() {
-    localStorage.removeItem('accessToken')
-    navigate(signOutPath, { replace: true })
+  async function handleSignOut() {
+    try {
+      await logout()
+    } catch {
+      // Local sign-out still completes when the server is temporarily unavailable.
+    } finally {
+      localStorage.removeItem('accessToken')
+      navigate(signOutPath, { replace: true })
+    }
   }
 
   return (

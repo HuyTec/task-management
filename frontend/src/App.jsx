@@ -9,8 +9,10 @@ import AdminUsersPage from './pages/admin/AdminUsersPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpenseDetailPage from './pages/ExpenseDetailPage'
 import ExpensesPage from './pages/ExpensesPage'
+import ForbiddenPage from './pages/ForbiddenPage'
 import HistoryPage from './pages/HistoryPage'
 import LoginPage from './pages/LoginPage'
+import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
 import TasksPage from './pages/TasksPage'
@@ -27,6 +29,8 @@ function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/403" element={<ForbiddenPage />} />
+      <Route path="/404" element={<NotFoundPage />} />
       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route
@@ -89,8 +93,7 @@ function App() {
       <Route path="/tasks/:taskId" element={<RequireAuth><TaskDetailPage /></RequireAuth>} />
       <Route path="/expenses" element={<RequireAuth><ExpensesPage /></RequireAuth>} />
       <Route path="/expenses/:expenseId" element={<RequireAuth><ExpenseDetailPage /></RequireAuth>} />
-      <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

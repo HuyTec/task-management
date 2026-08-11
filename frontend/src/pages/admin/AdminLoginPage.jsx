@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { login } from '../../api/authApi'
+import { login, logout } from '../../api/authApi'
 import PasswordField from '../../components/auth/PasswordField'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 
@@ -21,8 +21,13 @@ function AdminLoginPage() {
       const data = await login({ username, password })
 
       if (!data?.accessToken || data.user?.role !== 'ADMIN') {
+        try {
+          await logout()
+        } catch {
+          // The local login attempt still ends even if server-side cleanup fails.
+        }
         localStorage.removeItem('accessToken')
-        setError('This account does not have administrator access.')
+        navigate('/403', { replace: true })
         return
       }
 

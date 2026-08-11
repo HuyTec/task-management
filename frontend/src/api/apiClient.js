@@ -27,6 +27,11 @@ apiClient.interceptors.response.use(
 
     const isAuthRequest = originalRequest?.url?.startsWith('/auth/')
 
+    if (status === 403 && window.location.pathname !== '/403') {
+      window.location.assign('/403')
+      return Promise.reject(error)
+    }
+
     if (
       status !== 401 ||
       !originalRequest ||

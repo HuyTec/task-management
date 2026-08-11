@@ -52,13 +52,6 @@ public class TaskService {
     private final SecurityUtils securityUtils;
         private final ApplicationEventPublisher eventPublisher;
 
-    // private Task ensureTaskAvailable(boolean , Long userId, Long id) {
-    //     return  ? taskRepository.findById(id)
-    //                             .orElseThrow(() -> new ResourceNotFoundException("Task not found!"))
-    //                     : taskRepository.findByIdAndUserId(id, userId)
-    //                             .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
-    // }
-
     private Task ensureTaskAvailable(Long userId, Long taskId) {
         return taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));

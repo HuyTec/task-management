@@ -40,6 +40,18 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
     }
 
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<Response<Void>> handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthenticationStoreUnavailableException.class)
+    public ResponseEntity<Response<Void>> handleAuthenticationStoreUnavailable(
+            AuthenticationStoreUnavailableException ex
+    ) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "Authentication service is temporarily unavailable");
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Response<Void>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult()
