@@ -100,7 +100,7 @@ function ExpensesPage() {
   }
 
   return (
-    <main className="dashboard-shell">
+    <main className="dashboard-shell tab-theme tab-theme--expenses">
       <AppHeader />
       <section className="dashboard-content dashboard-content--wide">
         <div className="page-heading">

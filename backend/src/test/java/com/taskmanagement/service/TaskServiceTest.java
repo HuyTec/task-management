@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,13 +18,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.task.UpdateTaskRequest;
 import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.mapper.ExpenseMapper;
 import com.taskmanagement.mapper.TaskMapper;
+import com.taskmanagement.model.Project;
+import com.taskmanagement.model.TaskStatus;
+import com.taskmanagement.model.User;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.repository.ExpenseRepository;
+import com.taskmanagement.repository.ProjectRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
@@ -41,6 +47,7 @@ class TaskServiceTest {
     @Mock private TaskMapper taskMapper;
     @Mock private ExpenseMapper expenseMapper;
     @Mock private SecurityUtils securityUtils;
+    @Mock private ProjectRepository projectRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CustomUserDetails currentUser;
 
@@ -50,7 +57,7 @@ class TaskServiceTest {
     @Test
     void createTaskShouldFailWhenCurrentUserNoLongerExists() {
         Long userId = 1L;
-        CreateTaskRequest request = new CreateTaskRequest("Test task", null, null, null);
+        CreateTaskRequest request = new CreateTaskRequest("Test task", null, null, null,null);
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
@@ -68,7 +75,7 @@ class TaskServiceTest {
         Long taskId = 42L;
         TaskDetailResponse cachedTask = new TaskDetailResponse(
                 taskId, "Private task", null, null, null, userId,
-                null, null, null, List.of(), 0.0);
+                null,null,  null, null, List.of(), 0.0);
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
@@ -79,5 +86,103 @@ class TaskServiceTest {
         assertThat(response.data()).isEqualTo(cachedTask);
         verify(taskCacheService).get(userId, taskId);
         verify(taskRepository, never()).findByIdAndUserId(taskId, userId);
+    }
+
+    @Test
+    void createTaskLinksOnlyAProjectOwnedByCurrentUser() {
+        Long userId = 7L;
+        Long projectId = 12L;
+        CreateTaskRequest request = new CreateTaskRequest(
+                "Project task", null, null, null, projectId
+        );
+        Task task = new Task();
+        User user = new User();
+        Project project = new Project();
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(taskMapper.toTask(request)).thenReturn(task);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectRepository.findByIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(project));
+
+        taskService.createTask(request);
+
+        assertThat(task.getUser()).isSameAs(user);
+        assertThat(task.getProject()).isSameAs(project);
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.TODO);
+        verify(taskRepository).save(task);
+    }
+
+    @Test
+    void createTaskRejectsProjectOutsideCurrentUserOwnership() {
+        Long userId = 7L;
+        Long projectId = 12L;
+        CreateTaskRequest request = new CreateTaskRequest(
+                "Foreign project task", null, null, null, projectId
+        );
+        Task task = new Task();
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(taskMapper.toTask(request)).thenReturn(task);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(new User()));
+        when(projectRepository.findByIdAndUserId(projectId, userId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Project not found!");
+
+        verify(taskRepository, never()).save(task);
+    }
+
+    @Test
+    void updateTaskWithZeroProjectIdUnlinksWithoutChangingOtherFields() {
+        Long userId = 7L;
+        Long taskId = 42L;
+        Project project = new Project();
+        Task task = new Task();
+        task.setId(taskId);
+        task.setTitle("Keep this title");
+        task.setStatus(TaskStatus.IN_PROGRESS);
+        task.setProject(project);
+        UpdateTaskRequest request = new UpdateTaskRequest(
+                null, null, null, null, null, 0L
+        );
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(taskRepository.findByIdAndUserId(taskId, userId)).thenReturn(Optional.of(task));
+        when(expenseRepository.findByTaskId(taskId)).thenReturn(List.of());
+
+        taskService.updateTask(taskId, request);
+
+        assertThat(task.getProject()).isNull();
+        assertThat(task.getTitle()).isEqualTo("Keep this title");
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
+        verify(taskRepository).save(task);
+        verifyNoInteractions(projectRepository);
+    }
+
+    @Test
+    void unlinkFromProjectKeepsTaskAndEvictsItsCache() {
+        Long userId = 7L;
+        Long taskId = 42L;
+        Task task = new Task();
+        task.setProject(new Project());
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(taskRepository.findByIdAndUserId(taskId, userId)).thenReturn(Optional.of(task));
+
+        taskService.unlinkFromProject(taskId);
+
+        assertThat(task.getProject()).isNull();
+        verify(taskRepository).save(task);
+        verify(eventPublisher).publishEvent(
+                new com.taskmanagement.event.TaskCacheEvictEvent(userId, taskId)
+        );
+        verify(taskRepository, never()).delete(task);
     }
 }

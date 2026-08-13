@@ -25,6 +25,7 @@ import com.taskmanagement.mapper.ExpenseMapper;
 import com.taskmanagement.mapper.TaskMapper;
 import com.taskmanagement.model.Expense;
 import com.taskmanagement.model.Task;
+import com.taskmanagement.model.Project;
 import com.taskmanagement.model.TaskStatus;
 import com.taskmanagement.model.User;
 import com.taskmanagement.repository.ExpenseRepository;
@@ -33,6 +34,7 @@ import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.repository.projection.TaskTotalProjection;
 import com.taskmanagement.security.CustomUserDetails;
 import com.taskmanagement.service.cache.TaskCacheService;
+import com.taskmanagement.repository.ProjectRepository;
 import com.taskmanagement.utils.SecurityUtils;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final ExpenseRepository expenseRepository;
+    private final ProjectRepository projectRepository;
     private final TaskMapper taskMapper;
     private final ExpenseMapper expenseMapper;
     private final SecurityUtils securityUtils;
@@ -55,6 +58,11 @@ public class TaskService {
     private Task ensureTaskAvailable(Long userId, Long taskId) {
         return taskRepository.findByIdAndUserId(taskId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+    }
+
+    private Project ensureProjectAvailable(Long userId, Long projectId) {
+        return projectRepository.findByIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
     }
 
     @Transactional(readOnly=true)
@@ -124,6 +132,31 @@ public class TaskService {
         return Response.success(responses, "Task data retrieved successfully!");
     }
 
+    @Transactional(readOnly = true)
+    public Response<List<TaskResponse>> getTasksByProject(Long projectId) {
+        CustomUserDetails currentUser = securityUtils.getCurrentUser();
+        ensureProjectAvailable(currentUser.getId(), projectId);
+
+        List<Task> tasks = taskRepository.findByProjectIdAndUserId(projectId, currentUser.getId());
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        if (taskIds.isEmpty()) {
+            return Response.success(List.of(), "Project tasks retrieved successfully!");
+        }
+
+        Map<Long, Double> totalMap = expenseRepository.sumAmountsByTaskIds(taskIds).stream()
+                .collect(Collectors.toMap(
+                        TaskTotalProjection::getTaskId,
+                        TaskTotalProjection::getTotal
+                ));
+        List<TaskResponse> responses = tasks.stream()
+                .map(task -> taskMapper.toTaskResponse(
+                        task,
+                        totalMap.getOrDefault(task.getId(), 0.0)
+                ))
+                .toList();
+        return Response.success(responses, "Project tasks retrieved successfully!");
+    }
+
     public Response<TaskResponse> createTask(CreateTaskRequest request){
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
@@ -133,6 +166,9 @@ public class TaskService {
             .orElseThrow(() -> new ResourceNotFoundException("User not found!"));
         task.setUser(user);
         task.setStatus(TaskStatus.TODO);
+        if (request.projectId() != null) {
+            task.setProject(ensureProjectAvailable(currentUser.getId(), request.projectId()));
+        }
         taskRepository.save(task);
 
         TaskResponse response = taskMapper.toTaskResponse(task, 0.0);
@@ -168,6 +204,14 @@ public class TaskService {
             task.setDueDate(request.dueDate());
         }
 
+        if (request.projectId() != null) {
+            if (request.projectId() == 0) {
+                task.setProject(null);
+            } else {
+                task.setProject(ensureProjectAvailable(currentUser.getId(), request.projectId()));
+            }
+        }
+
         taskRepository.save(task);
         eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), id));
         
@@ -200,5 +244,19 @@ public class TaskService {
         expenseIds.forEach(expenseId -> eventPublisher.publishEvent(new ExpenseCacheEvictEvent(currentUser.getId(), expenseId)));
 
         return Response.success(null, "Task deleted successfully!");
+    }
+
+    public Response<TaskResponse> unlinkFromProject(Long taskId) {
+        CustomUserDetails currentUser = securityUtils.getCurrentUser();
+
+        Task task = ensureTaskAvailable(currentUser.getId(), taskId);
+
+        task.setProject(null);
+        taskRepository.save(task);
+
+        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), taskId));
+
+        TaskResponse response = taskMapper.toTaskResponse(task, 0.0);
+        return Response.success(response, "Task unlinked from project successfully!");
     }
 }

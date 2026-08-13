@@ -44,7 +44,7 @@ function ExpenseDetailPage() {
   }, [expenseId, reloadKey])
 
   return (
-    <main className="dashboard-shell">
+    <main className="dashboard-shell tab-theme tab-theme--expenses">
       <AppHeader />
       <section className="dashboard-content">
         <Link className="back-link" to="/expenses">← Back to expense ledger</Link>

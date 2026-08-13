@@ -11,6 +11,7 @@ function AppHeader() {
         { label: 'Home', to: '/dashboard' },
         { label: 'Tasks', to: '/tasks' },
         { label: 'Expenses', to: '/expenses' },
+        { label: 'Projects', to: '/projects' },
         { label: 'Profile', to: '/profile' },
       ]}
       signOutPath="/login"

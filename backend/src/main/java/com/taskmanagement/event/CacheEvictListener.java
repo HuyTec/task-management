@@ -5,6 +5,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.taskmanagement.service.cache.ExpenseCacheService;
+import com.taskmanagement.service.cache.ProjectCacheService;
 import com.taskmanagement.service.cache.TaskCacheService;
 
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 public class CacheEvictListener {
     private final TaskCacheService taskCacheService;
     private final ExpenseCacheService expenseCacheService;
+    private final ProjectCacheService projectCacheService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTaskEvict(TaskCacheEvictEvent event) {
@@ -23,5 +25,10 @@ public class CacheEvictListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onExpenseEvict(ExpenseCacheEvictEvent event) {
         expenseCacheService.evict(event.userId(), event.expenseId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onProjectEvict(ProjectCacheEvictEvent event) {
+        projectCacheService.evict(event.userId(), event.projectId());
     }
 }

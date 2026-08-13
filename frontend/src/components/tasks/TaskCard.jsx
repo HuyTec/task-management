@@ -8,9 +8,17 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(date)
 }
 
-function TaskCard({ task, busy, onDelete, onEdit, onStatusChange }) {
+function TaskCard({ task, busy, onDelete, onDragStart, onEdit, onStatusChange }) {
   return (
-    <article className={`task-card task-card--${task.priority?.toLowerCase()}`}>
+    <article
+      className={`task-card task-card--${task.priority?.toLowerCase()}`}
+      draggable={!busy}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move'
+        event.dataTransfer.setData('text/plain', String(task.id))
+        onDragStart?.(task)
+      }}
+    >
       <div className="task-card__topline"><span className={`priority-badge priority-badge--${task.priority?.toLowerCase()}`}>{task.priority}</span></div>
       <h3>{task.title}</h3>
       <p className="task-card__date">{formatDate(task.dueDate)}</p>

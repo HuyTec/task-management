@@ -54,7 +54,7 @@ function TaskDetailPage() {
   }
 
   return (
-    <main className="dashboard-shell">
+    <main className="dashboard-shell tab-theme tab-theme--tasks">
       <AppHeader />
       <section className="dashboard-content">
         <Link className="back-link" to="/tasks">← Back to task board</Link>

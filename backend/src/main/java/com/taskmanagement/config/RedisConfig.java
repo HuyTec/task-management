@@ -10,6 +10,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.taskmanagement.dto.expense.ExpenseResponse;
+import com.taskmanagement.dto.project.ProjectResponse;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 
 @Configuration
@@ -23,6 +24,11 @@ public class RedisConfig {
     @Bean
     public RedisTemplate<String, ExpenseResponse> expenseRedisTemplate(RedisConnectionFactory connectionFactory) {
         return buildTemplate(connectionFactory, ExpenseResponse.class);
+    }
+
+    @Bean
+    public RedisTemplate<String, ProjectResponse> projectRedisTemplate(RedisConnectionFactory connectionFactory) {
+        return buildTemplate(connectionFactory, ProjectResponse.class);
     }
 
     private <T> RedisTemplate<String, T> buildTemplate(RedisConnectionFactory connectionFactory, Class<T> clazz) {

@@ -196,4 +196,7 @@ public class UserService {
         user.activate();
         return saveAndReturn(user, "User activated!");
     }
+
+
+
 }

@@ -18,6 +18,7 @@ public interface TaskMapper {
     
 
     @Mapping(target = "userId", source = "task.user.id")
+    @Mapping(target = "projectId", source = "task.project.id")
     @Mapping(target = "expenses", source = "expenses")
     @Mapping(target = "total", source = "total")
     public TaskDetailResponse toTaskDetailResponse(Task task, List<ExpenseResponse> expenses, Double total);
@@ -27,6 +28,7 @@ public interface TaskMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "user", ignore = true)
+    @Mapping(target = "project", ignore = true)
     public Task toTask(CreateTaskRequest request);
 }
 

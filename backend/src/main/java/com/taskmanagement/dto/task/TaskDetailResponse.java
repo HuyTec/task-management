@@ -14,6 +14,7 @@ public record TaskDetailResponse(
     TaskStatus status,
     TaskPriority priority,
     Long userId,
+    Long projectId,
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
     LocalDate dueDate,

@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByUserId(Long userId);
 
+    List<Task> findByProjectIdAndUserId(Long projectId, Long userId);
     @Query("SELECT t FROM Task t WHERE t.user.id = :userId" 
     + " AND (:keyword IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :keyword, '%')))"
     + " AND (:status IS NULL OR t.status = :status)"

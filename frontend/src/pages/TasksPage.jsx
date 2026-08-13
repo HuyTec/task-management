@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { createTask, deleteTaskById, getMyTasks, getTaskById, updateTaskById } from '../api/taskApi'
+import { getMyProjects } from '../api/projectApi'
 import AppHeader from '../components/layout/AppHeader'
 import TaskCard from '../components/tasks/TaskCard'
 import TaskForm from '../components/tasks/TaskForm'
@@ -15,6 +16,7 @@ const COLUMNS = [
 
 function TasksPage() {
   const [tasks, setTasks] = useState([])
+  const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [busyTaskId, setBusyTaskId] = useState(null)
@@ -27,7 +29,9 @@ function TasksPage() {
     setIsLoading(true)
     setError('')
     try {
-      setTasks(await getMyTasks(signal))
+      const [taskData, projectData] = await Promise.all([getMyTasks(signal), getMyProjects(signal)])
+      setTasks(taskData)
+      setProjects(projectData)
     } catch (apiError) {
       if (apiError.code !== 'ERR_CANCELED') setError(getApiErrorMessage(apiError, 'Unable to load your tasks.'))
     } finally {
@@ -86,13 +90,15 @@ function TasksPage() {
   async function moveTask(task, status) {
     if (status === task.status) return
     setBusyTaskId(task.id)
+    const previousStatus = task.status
+    setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item))
     setError('')
     try {
       await updateTaskById(task.id, { status })
-      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status } : item))
       setSuccess(`“${task.title}” moved successfully.`)
     } catch (apiError) {
       setError(getApiErrorMessage(apiError, 'Unable to move the task.'))
+      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status: previousStatus } : item))
     } finally {
       setBusyTaskId(null)
     }
@@ -113,8 +119,15 @@ function TasksPage() {
     }
   }
 
+  function dropTask(event, status) {
+    event.preventDefault()
+    const taskId = Number(event.dataTransfer.getData('text/plain'))
+    const task = tasks.find((item) => item.id === taskId)
+    if (task) moveTask(task, status)
+  }
+
   return (
-    <main className="dashboard-shell">
+    <main className="dashboard-shell tab-theme tab-theme--tasks">
       <AppHeader />
       <section className="dashboard-content dashboard-content--wide">
         <div className="page-heading">
@@ -123,13 +136,18 @@ function TasksPage() {
         </div>
         {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
         {success && <p className="form-alert form-alert--success" role="status">{success}</p>}
-        {showForm && <TaskForm initialTask={editingTask} isSaving={isSaving} onCancel={() => setShowForm(false)} onSubmit={saveTask} />}
+        {showForm && <TaskForm initialTask={editingTask} projects={projects} isSaving={isSaving} onCancel={() => setShowForm(false)} onSubmit={saveTask} />}
         {isLoading ? <p className="dashboard-lead">Loading your board...</p> : (
           <div className="kanban-board">
             {COLUMNS.map(([status, title, note]) => {
               const columnTasks = tasks.filter((task) => task.status === status)
               return (
-                <section className={`kanban-column kanban-column--${status.toLowerCase()}`} key={status}>
+                <section
+                  className={`kanban-column kanban-column--${status.toLowerCase()}`}
+                  key={status}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => dropTask(event, status)}
+                >
                   <header className="kanban-column__header"><div><h2>{title}</h2><p>{note}</p></div><span>{columnTasks.length}</span></header>
                   <div className="kanban-column__body">
                     {columnTasks.map((task) => <TaskCard key={task.id} task={task} busy={busyTaskId === task.id} onDelete={removeTask} onEdit={openEdit} onStatusChange={moveTask} />)}

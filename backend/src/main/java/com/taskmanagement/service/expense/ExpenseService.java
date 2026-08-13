@@ -104,7 +104,7 @@ public class ExpenseService {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
         Expense expense = ensureExpenseAvailable(currentUser.getId(), id);
 
-        if (expense.getTask() != null && request.taskId() != null) throw new BadRequestException("You have to unlink from other tasks");
+        // if (expense.getTask() != null && request.taskId() != null) throw new BadRequestException("You have to unlink from other tasks");
 
         if (request.description() != null) {
             if (request.description().isBlank()) {

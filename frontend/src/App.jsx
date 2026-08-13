@@ -14,6 +14,8 @@ import HistoryPage from './pages/HistoryPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
+import ProjectDetailPage from './pages/ProjectDetailPage'
+import ProjectsPage from './pages/ProjectsPage'
 import RegisterPage from './pages/RegisterPage'
 import TasksPage from './pages/TasksPage'
 import TaskDetailPage from './pages/TaskDetailPage'
@@ -91,6 +93,8 @@ function App() {
       />
       <Route path="/tasks" element={<RequireAuth><TasksPage /></RequireAuth>} />
       <Route path="/tasks/:taskId" element={<RequireAuth><TaskDetailPage /></RequireAuth>} />
+      <Route path="/projects" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
+      <Route path="/projects/:projectId" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
       <Route path="/expenses" element={<RequireAuth><ExpensesPage /></RequireAuth>} />
       <Route path="/expenses/:expenseId" element={<RequireAuth><ExpenseDetailPage /></RequireAuth>} />
       <Route path="*" element={<NotFoundPage />} />

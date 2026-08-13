@@ -54,4 +54,11 @@ public class TaskController {
     public ResponseEntity<Response<Void>> deleteTask(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(taskService.deleteTaskById(id));
     }
+
+    @DeleteMapping("/{id}/project")
+    public ResponseEntity<Response<TaskResponse>> unlinkProject(
+            @PathVariable @Positive Long id
+    ) {
+        return ResponseEntity.ok(taskService.unlinkFromProject(id));
+    }
 }

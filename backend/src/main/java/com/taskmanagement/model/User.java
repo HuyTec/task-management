@@ -43,6 +43,9 @@ public class User {
     @NotNull(message = "Role cannot be null")
     private UserRole role;
 
+    @Column
+    private String profilePictureUrl;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;    
     
