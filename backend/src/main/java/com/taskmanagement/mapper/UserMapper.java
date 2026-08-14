@@ -16,6 +16,7 @@ public interface UserMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deactivated", ignore = true)
     @Mapping(target = "role", ignore = true)
+    @Mapping(target = "profilePictureUrl", ignore = true)
 
     public User toUser(CreateUserRequest request);
 }

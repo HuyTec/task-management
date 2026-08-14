@@ -77,6 +77,7 @@ public class UserService {
         updateEmailIfChanged(user, request);
         updateDisplayNameIfChanged(user, request);
         updatePasswordIfChanged(user, request);
+        updateProfilePictureIfChanged(user, request);
         return userRepository.save(user);
     }
 
@@ -102,6 +103,12 @@ public class UserService {
     private void updatePasswordIfChanged(User user, UpdateUserRequest request) {
         if (request.password() == null || request.password().isBlank()) return;
         user.setPassword(passwordEncoder.encode(request.password()));
+    }
+
+    private void updateProfilePictureIfChanged(User user, UpdateUserRequest request) {
+        if (request.profilePictureUrl() == null) return;
+        String normalizedUrl = request.profilePictureUrl().trim();
+        user.setProfilePictureUrl(normalizedUrl.isEmpty() ? null : normalizedUrl);
     }
 
     private Response<UserResponse> saveAndReturn(User user, String message) {

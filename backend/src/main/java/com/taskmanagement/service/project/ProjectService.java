@@ -19,9 +19,12 @@ import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.mapper.ProjectMapper;
 import com.taskmanagement.model.Project;
+import com.taskmanagement.model.ProjectMember;
+import com.taskmanagement.model.ProjectRole;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.User;
 import com.taskmanagement.repository.ProjectRepository;
+import com.taskmanagement.repository.ProjectMemberRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
@@ -37,6 +40,7 @@ public class ProjectService {
 
     private final ProjectCacheService projectCacheService;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final ProjectMapper projectMapper;
@@ -95,6 +99,12 @@ public class ProjectService {
         Project project = projectMapper.toProject(request);
         project.setUser(user);
         projectRepository.save(project);
+
+        ProjectMember ownerMembership = new ProjectMember();
+        ownerMembership.setProject(project);
+        ownerMembership.setUser(user);
+        ownerMembership.setRole(ProjectRole.OWNER);
+        projectMemberRepository.save(ownerMembership);
 
         return Response.success(
                 projectMapper.toProjectResponse(project),

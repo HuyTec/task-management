@@ -8,6 +8,7 @@
         String username,
         String displayName,
         String email,
+        String profilePictureUrl,
         UserRole role,
         boolean deactivated,
         LocalDateTime createdAt,

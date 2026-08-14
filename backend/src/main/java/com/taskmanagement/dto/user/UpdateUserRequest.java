@@ -1,6 +1,7 @@
 package com.taskmanagement.dto.user;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Null;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateUserRequest(
@@ -15,6 +16,10 @@ public record UpdateUserRequest(
     String email,
 
     @Size(min = 8, message = "Password must be at least 8 characters long")
-    String password
+    String password,
+
+    @Size(max = 255, message = "Profile picture URL must be at most 255 characters long")
+    @Pattern(regexp = "^$|^https://\\S+$", message = "Profile picture URL must use HTTPS")
+    String profilePictureUrl
 ) {
 }

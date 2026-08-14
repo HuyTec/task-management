@@ -20,6 +20,21 @@ export async function getProjectTasks(projectId, signal) {
   return response.data.data
 }
 
+export async function getProjectMembers(projectId, signal) {
+  const response = await apiClient.get(`/projects/${projectId}/members`, { signal })
+  return response.data.data
+}
+
+export async function addProjectMember(projectId, memberData, signal) {
+  const response = await apiClient.post(`/projects/${projectId}/members`, memberData, { signal })
+  return response.data.data
+}
+
+export async function removeProjectMember(projectId, username, signal) {
+  const response = await apiClient.delete(`/projects/${projectId}/members/${encodeURIComponent(username)}`, { signal })
+  return response.data.data
+}
+
 export async function createProject(projectData, signal) {
   const response = await apiClient.post('/projects', projectData, { signal })
   return response.data.data

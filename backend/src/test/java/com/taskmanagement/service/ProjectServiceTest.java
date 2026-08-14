@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -26,7 +27,10 @@ import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.mapper.ProjectMapper;
 import com.taskmanagement.model.Project;
+import com.taskmanagement.model.ProjectRole;
 import com.taskmanagement.model.Task;
+import com.taskmanagement.model.User;
+import com.taskmanagement.repository.ProjectMemberRepository;
 import com.taskmanagement.repository.ProjectRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
@@ -40,6 +44,7 @@ class ProjectServiceTest {
 
     @Mock private ProjectCacheService projectCacheService;
     @Mock private ProjectRepository projectRepository;
+    @Mock private ProjectMemberRepository projectMemberRepository;
     @Mock private UserRepository userRepository;
     @Mock private TaskRepository taskRepository;
     @Mock private ProjectMapper projectMapper;
@@ -63,7 +68,45 @@ class ProjectServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Start date must be on or before end date");
 
-        verifyNoInteractions(projectRepository, userRepository, securityUtils);
+        verifyNoInteractions(projectRepository, projectMemberRepository, userRepository, securityUtils);
+    }
+
+    @Test
+    void createProjectCreatesOwnerMembershipForCurrentUser() {
+        Long userId = 7L;
+        CreateProjectRequest request = new CreateProjectRequest(
+                "Membership foundation",
+                "Every project starts with an owner",
+                LocalDate.of(2026, 8, 14),
+                LocalDate.of(2026, 8, 31)
+        );
+        User owner = new User();
+        owner.setId(userId);
+        Project project = new Project();
+        ProjectResponse mappedResponse = new ProjectResponse(
+                42L,
+                request.name(),
+                request.description(),
+                request.startDate(),
+                request.endDate()
+        );
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
+        when(projectMapper.toProject(request)).thenReturn(project);
+        when(projectMapper.toProjectResponse(project)).thenReturn(mappedResponse);
+
+        Response<ProjectResponse> response = projectService.createProject(request);
+
+        assertThat(response.data()).isEqualTo(mappedResponse);
+        assertThat(project.getUser()).isSameAs(owner);
+        verify(projectRepository).save(project);
+        verify(projectMemberRepository).save(argThat(membership ->
+                membership.getProject() == project
+                        && membership.getUser() == owner
+                        && membership.getRole() == ProjectRole.OWNER
+        ));
     }
 
     @Test

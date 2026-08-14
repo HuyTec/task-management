@@ -15,10 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.taskmanagement.dto.Response;
 import com.taskmanagement.dto.project.CreateProjectRequest;
+import com.taskmanagement.dto.project.AddProjectMemberRequest;
+import com.taskmanagement.dto.project.ProjectMemberResponse;
 import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.project.ProjectResponse;
 import com.taskmanagement.dto.project.UpdateProjectRequest;
 import com.taskmanagement.service.project.ProjectService;
+import com.taskmanagement.service.project.ProjectMemberService;
 import com.taskmanagement.service.task.TaskService;
 
 import jakarta.validation.Valid;
@@ -31,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectMemberService projectMemberService;
 
     private final TaskService taskService;
     @GetMapping
@@ -77,5 +81,28 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Response<Void>> deleteProject(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(projectService.deleteProject(id));
+    }
+
+    @GetMapping("/{id}/members")
+    public ResponseEntity<Response<List<ProjectMemberResponse>>> getProjectMembers(
+            @PathVariable @Positive Long id
+    ) {
+        return ResponseEntity.ok(projectMemberService.getMembers(id));
+    }
+
+    @PostMapping("/{id}/members")
+    public ResponseEntity<Response<ProjectMemberResponse>> addProjectMember(
+            @PathVariable @Positive Long id,
+            @RequestBody @Valid AddProjectMemberRequest request
+    ) {
+        return ResponseEntity.ok(projectMemberService.addMember(id, request));
+    }
+
+    @DeleteMapping("/{id}/members/{username}")
+    public ResponseEntity<Response<Void>> removeProjectMember(
+            @PathVariable @Positive Long id,
+            @PathVariable String username
+    ) {
+        return ResponseEntity.ok(projectMemberService.removeMember(id, username));
     }
 }

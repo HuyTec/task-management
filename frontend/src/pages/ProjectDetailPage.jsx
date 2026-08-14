@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { getProjectById, getProjectTasks } from '../api/projectApi'
+import { addProjectMember, getProjectById, getProjectMembers, getProjectTasks, removeProjectMember } from '../api/projectApi'
+import { createTask } from '../api/taskApi'
 import AppHeader from '../components/layout/AppHeader'
-import { formatDate, formatEnum } from '../utils/entityFormatters'
+import TaskForm from '../components/tasks/TaskForm'
+import { formatDate, formatDateTime, formatEnum } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 
 function getScheduleState(project) {
@@ -35,7 +37,17 @@ function ProjectDetailPage() {
   const [project, setProject] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [tasks, setTasks] = useState([])
+  const [members, setMembers] = useState([])
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [showTaskForm, setShowTaskForm] = useState(false)
+  const [isSavingTask, setIsSavingTask] = useState(false)
+  const [memberUsername, setMemberUsername] = useState('')
+  const [memberRole, setMemberRole] = useState('MEMBER')
+  const [isSavingMember, setIsSavingMember] = useState(false)
+  const [removingUsername, setRemovingUsername] = useState('')
+  const [memberError, setMemberError] = useState('')
+  const [memberSuccess, setMemberSuccess] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -46,9 +58,10 @@ function ProjectDetailPage() {
       setProject(null)
       setError('')
       try {
-        const [projectData, taskData] = await Promise.all([getProjectById(projectId, controller.signal), getProjectTasks(projectId, controller.signal)])
+        const [projectData, taskData, memberData] = await Promise.all([getProjectById(projectId, controller.signal), getProjectTasks(projectId, controller.signal), getProjectMembers(projectId, controller.signal)])
         setProject(projectData)
         setTasks(taskData)
+        setMembers(memberData)
       } catch (apiError) {
         if (apiError.code !== 'ERR_CANCELED') {
           setError(getApiErrorMessage(apiError, 'Unable to load this project.'))
@@ -66,6 +79,56 @@ function ProjectDetailPage() {
     () => project ? getScheduleState(project) : null,
     [project],
   )
+
+  async function addTask(payload) {
+    setIsSavingTask(true)
+    setError('')
+    setSuccess('')
+    try {
+      await createTask(payload)
+      setShowTaskForm(false)
+      setSuccess('Task created and assigned to this project successfully.')
+      setReloadKey((key) => key + 1)
+    } catch (apiError) {
+      setError(getApiErrorMessage(apiError, 'Unable to create a task for this project.'))
+    } finally {
+      setIsSavingTask(false)
+    }
+  }
+
+  async function handleAddMember(event) {
+    event.preventDefault()
+    setIsSavingMember(true)
+    setMemberError('')
+    setMemberSuccess('')
+    try {
+      const newMember = await addProjectMember(projectId, { username: memberUsername.trim(), role: memberRole })
+      setMembers((current) => [...current, newMember])
+      setMemberUsername('')
+      setMemberRole('MEMBER')
+      setMemberSuccess(`${newMember.displayName || newMember.username} added to the project.`)
+    } catch (apiError) {
+      setMemberError(getApiErrorMessage(apiError, 'Unable to add this project member.'))
+    } finally {
+      setIsSavingMember(false)
+    }
+  }
+
+  async function handleRemoveMember(member) {
+    if (!window.confirm(`Remove ${member.displayName || member.username} from this project?`)) return
+    setRemovingUsername(member.username)
+    setMemberError('')
+    setMemberSuccess('')
+    try {
+      await removeProjectMember(projectId, member.username)
+      setMembers((current) => current.filter((item) => item.username !== member.username))
+      setMemberSuccess(`${member.displayName || member.username} removed from the project.`)
+    } catch (apiError) {
+      setMemberError(getApiErrorMessage(apiError, 'Unable to remove this project member.'))
+    } finally {
+      setRemovingUsername('')
+    }
+  }
 
   return (
     <main className="dashboard-shell tab-theme tab-theme--projects">
@@ -110,7 +173,13 @@ function ProjectDetailPage() {
 
             <section className="linked-task-panel">
               <p className="eyebrow">Project work</p>
-              <h2>{tasks.length ? `${tasks.length} linked task${tasks.length === 1 ? '' : 's'}` : 'No tasks assigned yet.'}</h2>
+              <div className="section-heading">
+                <h2>{tasks.length ? `${tasks.length} linked task${tasks.length === 1 ? '' : 's'}` : 'No tasks assigned yet.'}</h2>
+                <button className="primary-button primary-button--fit" type="button" onClick={() => { setShowTaskForm(true); setError(''); setSuccess('') }}>New task</button>
+              </div>
+              {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
+              {success && <p className="form-alert form-alert--success" role="status">{success}</p>}
+              {showTaskForm && <TaskForm fixedProject={project} isSaving={isSavingTask} onCancel={() => setShowTaskForm(false)} onSubmit={addTask} />}
               {tasks.length ? (
                 <div className="table-scroll entity-table-wrap">
                   <table className="dashboard-table">
@@ -131,6 +200,28 @@ function ProjectDetailPage() {
                 <p>Assign a task from the task form when this project is ready for execution.</p>
               )}
               <Link className="text-button inline-action" to="/tasks">Open task board</Link>
+            </section>
+
+            <section className="linked-task-panel project-members-panel">
+              <p className="eyebrow">Project team</p>
+              <div className="section-heading"><h2>{members.length} project member{members.length === 1 ? '' : 's'}</h2></div>
+              <form className="member-add-form" onSubmit={handleAddMember}>
+                <label className="form-field"><span>Username</span><input value={memberUsername} onChange={(event) => setMemberUsername(event.target.value)} placeholder="Enter an existing username" required maxLength="255" /></label>
+                <label className="form-field"><span>Role</span><select value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="MEMBER">Member</option><option value="VIEWER">Viewer</option></select></label>
+                <button className="primary-button primary-button--fit" type="submit" disabled={isSavingMember}>{isSavingMember ? 'Adding...' : 'Add member'}</button>
+              </form>
+              {memberError && <p className="form-alert form-alert--error" role="alert">{memberError}</p>}
+              {memberSuccess && <p className="form-alert form-alert--success" role="status">{memberSuccess}</p>}
+              <div className="member-list">
+                {members.map((member) => (
+                  <article className="member-row" key={member.username}>
+                    <div className="member-avatar" aria-hidden="true">{(member.displayName || member.username).charAt(0).toUpperCase()}</div>
+                    <div className="member-identity"><strong>{member.displayName || member.username}</strong><span>@{member.username} · {member.email}</span></div>
+                    <div className="member-meta"><span className={`status-badge ${member.role === 'OWNER' ? 'status-badge--active' : ''}`}>{formatEnum(member.role)}</span><small>Joined {formatDateTime(member.joinedAt)}</small></div>
+                    <button className="text-button action-button--delete" type="button" disabled={member.role === 'OWNER' || Boolean(removingUsername)} onClick={() => handleRemoveMember(member)}>{removingUsername === member.username ? 'Removing...' : 'Remove'}</button>
+                  </article>
+                ))}
+              </div>
             </section>
           </>
         )}

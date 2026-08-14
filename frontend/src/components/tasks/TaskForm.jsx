@@ -4,7 +4,7 @@ const EMPTY_TASK = { title: '', description: '', priority: 'MEDIUM', status: 'TO
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED']
 
-function TaskForm({ initialTask, projects = [], isSaving, onCancel, onSubmit }) {
+function TaskForm({ initialTask, projects = [], fixedProject, isSaving, onCancel, onSubmit }) {
   const [form, setForm] = useState(EMPTY_TASK)
 
   useEffect(() => {
@@ -26,7 +26,7 @@ function TaskForm({ initialTask, projects = [], isSaving, onCancel, onSubmit }) 
     const payload = {
       title: form.title.trim(), description: form.description.trim() || null,
       priority: form.priority, dueDate: form.dueDate || null,
-      projectId: form.projectId ? Number(form.projectId) : initialTask ? 0 : null,
+      projectId: fixedProject?.id ?? (form.projectId ? Number(form.projectId) : initialTask ? 0 : null),
     }
     if (initialTask) payload.status = form.status
     onSubmit(payload)
@@ -43,7 +43,11 @@ function TaskForm({ initialTask, projects = [], isSaving, onCancel, onSubmit }) 
       <label className="form-field"><span>Priority</span><select name="priority" value={form.priority} onChange={updateField}>{PRIORITIES.map((value) => <option key={value}>{value}</option>)}</select></label>
       {initialTask && <label className="form-field"><span>Status</span><select name="status" value={form.status} onChange={updateField}>{STATUSES.map((value) => <option key={value} value={value}>{value.replace('_', ' ')}</option>)}</select></label>}
       <label className="form-field"><span>Due date</span><input name="dueDate" type="date" value={form.dueDate} onChange={updateField} /></label>
-      <label className="form-field"><span>Project</span><select name="projectId" value={form.projectId} onChange={updateField}><option value="">Independent task</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+      {fixedProject ? (
+        <div className="form-field"><span>Project</span><div className="locked-relation"><strong>{fixedProject.name}</strong><small>Automatically assigned to this project</small></div></div>
+      ) : (
+        <label className="form-field"><span>Project</span><select name="projectId" value={form.projectId} onChange={updateField}><option value="">Independent task</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+      )}
       <div className="entity-form__actions"><button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : initialTask ? 'Save changes' : 'Create task'}</button></div>
     </form>
   )
