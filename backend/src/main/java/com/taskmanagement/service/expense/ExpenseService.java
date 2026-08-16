@@ -1,12 +1,16 @@
 package com.taskmanagement.service.expense;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.expense.CreateExpenseRequest;
 import com.taskmanagement.dto.expense.ExpenseResponse;
 import com.taskmanagement.dto.expense.UpdateExpenseRequest;
@@ -24,12 +28,16 @@ import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
 import com.taskmanagement.service.cache.ExpenseCacheService;
 import com.taskmanagement.utils.SecurityUtils;
+import com.taskmanagement.utils.PageableValidator;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class ExpenseService {
+    private static final Set<String> ALLOWED_SORTS = Set.of(
+            "description", "amount", "category", "expenseDate", "createdAt", "updatedAt"
+    );
     private final ExpenseRepository expenseRepository;
     private final ExpenseMapper expenseMapper;
     private final UserRepository userRepository;
@@ -73,12 +81,15 @@ public class ExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public Response<List<ExpenseResponse>> getMyExpenses() {
+    public Response<PageResponse<ExpenseResponse>> getMyExpenses(Pageable pageable) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
+        PageableValidator.requireAllowedSorts(pageable, ALLOWED_SORTS);
 
-        List<Expense> expenses = expenseRepository.findByUserId(currentUser.getId());
-        List<ExpenseResponse> responses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
-        return Response.success(responses, "All expenses retrieved successfully!");
+        Page<Expense> expenses = expenseRepository.findByUserId(currentUser.getId(), pageable);
+        List<ExpenseResponse> responses = expenses.getContent().stream()
+                .map(expenseMapper::toExpenseResponse)
+                .toList();
+        return Response.success(PageResponse.from(expenses, responses), "All expenses retrieved successfully!");
     }
 
     @Transactional(readOnly = true)

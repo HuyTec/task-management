@@ -9,9 +9,11 @@ import {
   updateProjectById,
 } from '../api/projectApi'
 import AppHeader from '../components/layout/AppHeader'
+import Pagination from '../components/layout/Pagination'
 import ProjectForm from '../components/projects/ProjectForm'
-import { formatDate } from '../utils/entityFormatters'
+import { formatDate, formatEnum } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
+import { decrementPageTotal } from '../utils/pageUtils'
 
 function localDateValue() {
   const today = new Date()
@@ -27,6 +29,8 @@ function getProjectPhase(project, today = localDateValue()) {
 
 function ProjectsPage() {
   const [projects, setProjects] = useState([])
+  const [projectPage, setProjectPage] = useState(null)
+  const [pageNumber, setPageNumber] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [busyProjectId, setBusyProjectId] = useState(null)
@@ -45,7 +49,9 @@ function ProjectsPage() {
     setIsLoading(true)
     setError('')
     try {
-      setProjects(await getMyProjects(signal))
+      const data = await getMyProjects({ page: pageNumber, size: 20 }, signal)
+      setProjects(data.content)
+      setProjectPage(data)
     } catch (apiError) {
       if (apiError.code !== 'ERR_CANCELED') {
         setError(getApiErrorMessage(apiError, 'Unable to load your projects.'))
@@ -53,7 +59,7 @@ function ProjectsPage() {
     } finally {
       if (!signal?.aborted) setIsLoading(false)
     }
-  }, [])
+  }, [pageNumber])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -111,8 +117,13 @@ function ProjectsPage() {
     setSuccess('')
     try {
       await deleteProjectById(project.id)
-      setProjects((current) => current.filter((item) => item.id !== project.id))
       setSuccess('Project deleted successfully.')
+      if (projects.length === 1 && pageNumber > 0) {
+        setPageNumber((current) => current - 1)
+      } else {
+        setProjects((current) => current.filter((item) => item.id !== project.id))
+        setProjectPage(decrementPageTotal)
+      }
     } catch (apiError) {
       setError(getApiErrorMessage(apiError, 'Unable to delete the project.'))
     } finally {
@@ -138,9 +149,9 @@ function ProjectsPage() {
         </div>
 
         <div className="summary-strip">
-          <div><span>Total projects</span><strong>{projects.length}</strong></div>
-          <div><span>In progress</span><strong>{phaseTotals['In progress'] || 0}</strong></div>
-          <div><span>Upcoming</span><strong>{phaseTotals.Upcoming || 0}</strong></div>
+          <div><span>Total projects</span><strong>{projectPage?.totalElements || 0}</strong></div>
+          <div><span>In progress on page</span><strong>{phaseTotals['In progress'] || 0}</strong></div>
+          <div><span>Upcoming on page</span><strong>{phaseTotals.Upcoming || 0}</strong></div>
         </div>
 
         {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
@@ -168,6 +179,7 @@ function ProjectsPage() {
                   <th>Project</th>
                   <th>Schedule</th>
                   <th>Phase</th>
+                  <th>Your role</th>
                   <th>Description</th>
                   <th><span className="sr-only">Actions</span></th>
                 </tr>
@@ -175,6 +187,8 @@ function ProjectsPage() {
               <tbody>
                 {projects.map((project) => {
                   const phase = getProjectPhase(project)
+                  const canEdit = project.currentUserRole === 'OWNER' || project.currentUserRole === 'MANAGER'
+                  const canDelete = project.currentUserRole === 'OWNER'
                   return (
                     <tr key={project.id}>
                       <td>
@@ -184,31 +198,33 @@ function ProjectsPage() {
                       </td>
                       <td>{formatDate(project.startDate)} to {formatDate(project.endDate)}</td>
                       <td><span className={phase.className}>{phase.label}</span></td>
+                      <td><span className={`status-badge ${project.currentUserRole === 'OWNER' ? 'status-badge--active' : ''}`}>{formatEnum(project.currentUserRole)}</span></td>
                       <td>{project.description || '-'}</td>
                       <td className="table-actions">
-                        <button
+                        <Link className="text-button" to={`/projects/${project.id}/members`}>Team</Link>
+                        {canEdit && <button
                           className="text-button"
                           type="button"
                           disabled={busyProjectId === project.id}
                           onClick={() => openEdit(project)}
                         >
                           Edit
-                        </button>
-                        <button
+                        </button>}
+                        {canDelete && <button
                           className="text-button action-button--delete"
                           type="button"
                           disabled={busyProjectId === project.id}
                           onClick={() => removeProject(project)}
                         >
                           Delete
-                        </button>
+                        </button>}
                       </td>
                     </tr>
                   )
                 })}
                 {projects.length === 0 && (
                   <tr>
-                    <td className="table-empty" colSpan="5">
+                    <td className="table-empty" colSpan="6">
                       No projects yet. Create one when several outcomes need a shared direction.
                     </td>
                   </tr>
@@ -217,6 +233,7 @@ function ProjectsPage() {
             </table>
           </div>
         )}
+        {!isLoading && <Pagination page={projectPage} label="projects" onPageChange={setPageNumber} />}
       </section>
     </main>
   )

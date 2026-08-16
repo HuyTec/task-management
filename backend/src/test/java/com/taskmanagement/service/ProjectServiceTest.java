@@ -18,19 +18,23 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.project.CreateProjectRequest;
 import com.taskmanagement.dto.project.ProjectResponse;
 import com.taskmanagement.dto.project.UpdateProjectRequest;
 import com.taskmanagement.exception.BadRequestException;
+import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.mapper.ProjectMapper;
 import com.taskmanagement.model.Project;
 import com.taskmanagement.model.ProjectRole;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.User;
-import com.taskmanagement.repository.ProjectMemberRepository;
+import com.taskmanagement.repository.MemberRepository;
 import com.taskmanagement.repository.ProjectRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
@@ -44,7 +48,7 @@ class ProjectServiceTest {
 
     @Mock private ProjectCacheService projectCacheService;
     @Mock private ProjectRepository projectRepository;
-    @Mock private ProjectMemberRepository projectMemberRepository;
+    @Mock private MemberRepository projectMemberRepository;
     @Mock private UserRepository userRepository;
     @Mock private TaskRepository taskRepository;
     @Mock private ProjectMapper projectMapper;
@@ -99,7 +103,10 @@ class ProjectServiceTest {
 
         Response<ProjectResponse> response = projectService.createProject(request);
 
-        assertThat(response.data()).isEqualTo(mappedResponse);
+        assertThat(response.data()).isEqualTo(new ProjectResponse(
+                mappedResponse.id(), mappedResponse.name(), mappedResponse.description(),
+                mappedResponse.startDate(), mappedResponse.endDate(), ProjectRole.OWNER
+        ));
         assertThat(project.getUser()).isSameAs(owner);
         verify(projectRepository).save(project);
         verify(projectMemberRepository).save(argThat(membership ->
@@ -107,6 +114,43 @@ class ProjectServiceTest {
                         && membership.getUser() == owner
                         && membership.getRole() == ProjectRole.OWNER
         ));
+    }
+
+    @Test
+    void getMyProjectsReturnsProjectsFromCurrentUsersMemberships() {
+        Long userId = 7L;
+        Project sharedProject = new Project();
+        sharedProject.setId(42L);
+        User currentUserEntity = new User();
+        currentUserEntity.setId(userId);
+        com.taskmanagement.model.ProjectMember membership = membership(
+                sharedProject, currentUserEntity, ProjectRole.MEMBER
+        );
+        ProjectResponse mappedResponse = new ProjectResponse(
+                42L,
+                "Shared project",
+                "Joined as a member",
+                LocalDate.of(2026, 8, 14),
+                LocalDate.of(2026, 8, 31)
+        );
+        PageRequest pageable = PageRequest.of(0, 20);
+        PageImpl<Project> projectPage = new PageImpl<>(List.of(sharedProject), pageable, 1);
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(projectRepository.findByUserId(userId, pageable)).thenReturn(projectPage);
+        when(projectMemberRepository.findByProjectIdInAndUserId(List.of(42L), userId))
+                .thenReturn(List.of(membership));
+        when(projectMapper.toProjectResponse(sharedProject)).thenReturn(mappedResponse);
+
+        Response<PageResponse<ProjectResponse>> response = projectService.getMyProjects(pageable);
+
+        assertThat(response.data().content()).containsExactly(new ProjectResponse(
+                mappedResponse.id(), mappedResponse.name(), mappedResponse.description(),
+                mappedResponse.startDate(), mappedResponse.endDate(), ProjectRole.MEMBER
+        ));
+        assertThat(response.data().totalElements()).isEqualTo(1);
+        verify(projectRepository).findByUserId(userId, pageable);
     }
 
     @Test
@@ -123,13 +167,18 @@ class ProjectServiceTest {
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(membership(new Project(), new User(), ProjectRole.MEMBER)));
         when(projectCacheService.get(userId, projectId)).thenReturn(Optional.of(cachedProject));
 
         Response<ProjectResponse> response = projectService.getProjectById(projectId);
 
-        assertThat(response.data()).isEqualTo(cachedProject);
+        assertThat(response.data()).isEqualTo(new ProjectResponse(
+                cachedProject.id(), cachedProject.name(), cachedProject.description(),
+                cachedProject.startDate(), cachedProject.endDate(), ProjectRole.MEMBER
+        ));
         verify(projectCacheService).get(userId, projectId);
-        verify(projectRepository, never()).findByIdAndUserId(projectId, userId);
+        verify(projectMemberRepository).findByProjectIdAndUserId(projectId, userId);
     }
 
     @Test
@@ -148,8 +197,8 @@ class ProjectServiceTest {
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
-        when(projectRepository.findByIdAndUserId(projectId, userId))
-                .thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(membership(project, new User(), ProjectRole.OWNER)));
 
         assertThatThrownBy(() -> projectService.updateProject(projectId, request))
                 .isInstanceOf(BadRequestException.class)
@@ -173,8 +222,12 @@ class ProjectServiceTest {
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
-        when(projectRepository.findByIdAndUserId(projectId, userId))
-                .thenReturn(Optional.of(project));
+        User owner = new User();
+        owner.setId(userId);
+        com.taskmanagement.model.ProjectMember ownerMembership = membership(project, owner, ProjectRole.OWNER);
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(ownerMembership));
+        when(projectMemberRepository.findByProjectId(projectId)).thenReturn(List.of(ownerMembership));
         when(taskRepository.findByProjectIdAndUserId(projectId, userId))
                 .thenReturn(List.of(firstTask, secondTask));
 
@@ -188,5 +241,58 @@ class ProjectServiceTest {
         verify(taskRepository, never()).delete(secondTask);
         verify(eventPublisher).publishEvent(new TaskCacheEvictEvent(userId, 1L));
         verify(eventPublisher).publishEvent(new TaskCacheEvictEvent(userId, 2L));
+    }
+
+    @Test
+    void regularMemberCannotUpdateProject() {
+        Long userId = 7L;
+        Long projectId = 42L;
+        Project project = new Project();
+        User member = new User();
+        member.setId(userId);
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(membership(project, member, ProjectRole.MEMBER)));
+
+        assertThatThrownBy(() -> projectService.updateProject(
+                projectId,
+                new UpdateProjectRequest("Changed", null, null, null)
+        )).isInstanceOf(ForbiddenException.class)
+          .hasMessage("Project update requires OWNER or MANAGER role");
+
+        verify(projectRepository, never()).save(project);
+    }
+
+    @Test
+    void managerCannotDeleteProject() {
+        Long userId = 7L;
+        Long projectId = 42L;
+        Project project = new Project();
+        User manager = new User();
+        manager.setId(userId);
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(membership(project, manager, ProjectRole.MANAGER)));
+
+        assertThatThrownBy(() -> projectService.deleteProject(projectId))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Only the project OWNER can delete a project");
+
+        verify(projectRepository, never()).delete(project);
+        verifyNoInteractions(taskRepository);
+    }
+
+    private com.taskmanagement.model.ProjectMember membership(
+            Project project,
+            User user,
+            ProjectRole role
+    ) {
+        com.taskmanagement.model.ProjectMember membership = new com.taskmanagement.model.ProjectMember();
+        membership.setProject(project);
+        membership.setUser(user);
+        membership.setRole(role);
+        return membership;
     }
 }

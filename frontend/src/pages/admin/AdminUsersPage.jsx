@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 
 import { activateUser, deactivateUser, deleteUserById, getAllUsers } from '../../api/userApi'
 import AdminHeader from '../../components/admin/AdminHeader'
+import Pagination from '../../components/layout/Pagination'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
+import { decrementPageTotal } from '../../utils/pageUtils'
 
 function formatDate(value) {
   if (!value) return 'Not available'
@@ -15,6 +17,8 @@ function formatDate(value) {
 
 function AdminUsersPage() {
   const [users, setUsers] = useState([])
+  const [userPage, setUserPage] = useState(null)
+  const [pageNumber, setPageNumber] = useState(0)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -29,7 +33,9 @@ function AdminUsersPage() {
       setIsLoading(true)
 
       try {
-        setUsers(await getAllUsers(controller.signal))
+        const data = await getAllUsers({ page: pageNumber, size: 20 }, controller.signal)
+        setUsers(data.content)
+        setUserPage(data)
       } catch (apiError) {
         if (apiError.code !== 'ERR_CANCELED') {
           setError(getApiErrorMessage(apiError, 'Unable to load users.'))
@@ -42,7 +48,7 @@ function AdminUsersPage() {
     loadUsers()
 
     return () => controller.abort()
-  }, [reloadKey])
+  }, [pageNumber, reloadKey])
 
   async function changeActivation(user, action) {
     const actionKey = `${action}-${user.id}`
@@ -76,8 +82,13 @@ function AdminUsersPage() {
 
     try {
       await deleteUserById(user.id)
-      setUsers((currentUsers) => currentUsers.filter((currentUser) => currentUser.id !== user.id))
       setStatusMessage(`${user.username} was deleted successfully.`)
+      if (users.length === 1 && pageNumber > 0) {
+        setPageNumber((current) => current - 1)
+      } else {
+        setUsers((current) => current.filter((item) => item.id !== user.id))
+        setUserPage(decrementPageTotal)
+      }
     } catch (apiError) {
       setError(getApiErrorMessage(apiError, 'Unable to delete this user.'))
     } finally {
@@ -166,6 +177,7 @@ function AdminUsersPage() {
           </table>
         </div>
       )}
+      {!isLoading && <Pagination page={userPage} label="users" onPageChange={setPageNumber} />}
       </section>
     </main>
   )

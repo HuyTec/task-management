@@ -5,7 +5,9 @@ import { createExpense, deleteExpenseById, getMyExpenses, unlinkExpenseFromTask,
 import { getMyTasks } from '../api/taskApi'
 import ExpenseForm from '../components/expenses/ExpenseForm'
 import AppHeader from '../components/layout/AppHeader'
+import Pagination from '../components/layout/Pagination'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
+import { decrementPageTotal } from '../utils/pageUtils'
 
 function formatMoney(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0)
@@ -19,6 +21,8 @@ function formatDate(value) {
 
 function ExpensesPage() {
   const [expenses, setExpenses] = useState([])
+  const [expensePage, setExpensePage] = useState(null)
+  const [pageNumber, setPageNumber] = useState(0)
   const [tasks, setTasks] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -35,15 +39,19 @@ function ExpensesPage() {
     setIsLoading(true)
     setError('')
     try {
-      const [expenseData, taskData] = await Promise.all([getMyExpenses(signal), getMyTasks(signal)])
-      setExpenses(expenseData)
-      setTasks(taskData)
+      const [expenseData, taskData] = await Promise.all([
+        getMyExpenses({ page: pageNumber, size: 20 }, signal),
+        getMyTasks({ page: 0, size: 100, sort: 'title,asc' }, signal),
+      ])
+      setExpenses(expenseData.content)
+      setExpensePage(expenseData)
+      setTasks(taskData.content)
     } catch (apiError) {
       if (apiError.code !== 'ERR_CANCELED') setError(getApiErrorMessage(apiError, 'Unable to load expense records.'))
     } finally {
       if (!signal?.aborted) setIsLoading(false)
     }
-  }, [])
+  }, [pageNumber])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -90,8 +98,13 @@ function ExpensesPage() {
     setError('')
     try {
       await deleteExpenseById(expense.id)
-      setExpenses((current) => current.filter((item) => item.id !== expense.id))
       setSuccess('Expense deleted successfully.')
+      if (expenses.length === 1 && pageNumber > 0) {
+        setPageNumber((current) => current - 1)
+      } else {
+        setExpenses((current) => current.filter((item) => item.id !== expense.id))
+        setExpensePage(decrementPageTotal)
+      }
     } catch (apiError) {
       setError(getApiErrorMessage(apiError, 'Unable to delete the expense.'))
     } finally {
@@ -108,9 +121,9 @@ function ExpensesPage() {
           <button className="primary-button primary-button--fit" type="button" onClick={openCreate}>Add expense</button>
         </div>
         <div className="summary-strip">
-          <div><span>Total recorded</span><strong>{formatMoney(total)}</strong></div>
-          <div><span>Entries</span><strong>{expenses.length}</strong></div>
-          <div><span>Linked to tasks</span><strong>{expenses.filter((expense) => expense.taskId).length}</strong></div>
+          <div><span>Current-page total</span><strong>{formatMoney(total)}</strong></div>
+          <div><span>All entries</span><strong>{expensePage?.totalElements || 0}</strong></div>
+          <div><span>Linked on this page</span><strong>{expenses.filter((expense) => expense.taskId).length}</strong></div>
         </div>
         {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
         {success && <p className="form-alert form-alert--success" role="status">{success}</p>}
@@ -135,6 +148,7 @@ function ExpensesPage() {
             </table>
           </div>
         )}
+        {!isLoading && <Pagination page={expensePage} label="expenses" onPageChange={setPageNumber} />}
       </section>
     </main>
   )

@@ -3,6 +3,7 @@ package com.taskmanagement.model;
 public enum TaskStatus {
     TODO,
     IN_PROGRESS,
-    DONE,
-    BLOCKED
+    IN_REVIEW,
+    CHANGES_REQUESTED,
+    DONE
 }

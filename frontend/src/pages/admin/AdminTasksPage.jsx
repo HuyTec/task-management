@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { getAllTasks } from '../../api/taskApi'
 import AdminHeader from '../../components/admin/AdminHeader'
+import Pagination from '../../components/layout/Pagination'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 
 function formatDate(value) {
@@ -15,6 +16,8 @@ function formatDate(value) {
 
 function AdminTasksPage() {
   const [tasks, setTasks] = useState([])
+  const [taskPage, setTaskPage] = useState(null)
+  const [pageNumber, setPageNumber] = useState(0)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [reloadKey, setReloadKey] = useState(0)
@@ -27,7 +30,9 @@ function AdminTasksPage() {
       setIsLoading(true)
 
       try {
-        setTasks(await getAllTasks(controller.signal))
+        const data = await getAllTasks({ page: pageNumber, size: 20 }, controller.signal)
+        setTasks(data.content)
+        setTaskPage(data)
       } catch (apiError) {
         if (apiError.code !== 'ERR_CANCELED') {
           setError(getApiErrorMessage(apiError, 'Unable to load tasks.'))
@@ -40,7 +45,7 @@ function AdminTasksPage() {
     loadTasks()
 
     return () => controller.abort()
-  }, [reloadKey])
+  }, [pageNumber, reloadKey])
 
   return (
     <main className="dashboard-shell">
@@ -82,6 +87,7 @@ function AdminTasksPage() {
             </table>
           </div>
         )}
+        {!isLoading && <Pagination page={taskPage} label="tasks" onPageChange={setPageNumber} />}
       </section>
     </main>
   )

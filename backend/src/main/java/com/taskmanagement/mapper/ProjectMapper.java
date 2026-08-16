@@ -10,6 +10,7 @@ import com.taskmanagement.model.Project;
 @Mapper(componentModel = "spring")
 public interface ProjectMapper {
 
+    @Mapping(target = "currentUserRole", ignore = true)
     ProjectResponse toProjectResponse(Project project);
 
     @Mapping(target = "id", ignore = true)

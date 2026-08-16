@@ -1,20 +1,23 @@
 package com.taskmanagement.service.task;
 
-import java.util.ArrayList;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.taskmanagement.dto.Response;
 import com.taskmanagement.dto.expense.ExpenseResponse;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
+import com.taskmanagement.dto.task.AcceptanceCriterionResponse;
+import com.taskmanagement.dto.task.TaskAssignmentResponse;
+import com.taskmanagement.dto.task.TaskReviewResponse;
 import com.taskmanagement.dto.task.TaskResponse;
+import com.taskmanagement.dto.task.TaskWorkspaceView;
 import com.taskmanagement.dto.task.UpdateTaskRequest;
 import com.taskmanagement.event.ExpenseCacheEvictEvent;
 import com.taskmanagement.event.TaskCacheEvictEvent;
@@ -23,20 +26,33 @@ import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.mapper.ExpenseMapper;
 import com.taskmanagement.mapper.TaskMapper;
+import com.taskmanagement.mapper.TaskWorkflowMapper;
+import com.taskmanagement.model.AssignmentStatus;
 import com.taskmanagement.model.Expense;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.Project;
+import com.taskmanagement.model.ProjectMember;
+import com.taskmanagement.model.ProjectRole;
 import com.taskmanagement.model.TaskStatus;
+import com.taskmanagement.model.TaskAssignment;
 import com.taskmanagement.model.User;
 import com.taskmanagement.repository.ExpenseRepository;
 import com.taskmanagement.repository.TaskRepository;
+import com.taskmanagement.repository.MemberRepository;
+import com.taskmanagement.repository.TaskAcceptanceCriterionRepository;
+import com.taskmanagement.repository.TaskAssignmentRepository;
+import com.taskmanagement.repository.TaskReviewRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.repository.projection.TaskTotalProjection;
 import com.taskmanagement.security.CustomUserDetails;
 import com.taskmanagement.service.cache.TaskCacheService;
 import com.taskmanagement.repository.ProjectRepository;
 import com.taskmanagement.utils.SecurityUtils;
-
+import com.taskmanagement.utils.PageableValidator;
+import org.springframework.data.domain.Pageable;
+import com.taskmanagement.dto.task.TaskFilter;
+import org.springframework.data.domain.Page;
+import com.taskmanagement.repository.specification.TaskSpecifications;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -45,41 +61,78 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class TaskService {
+    private static final Set<String> ALLOWED_SORTS = Set.of(
+            "title", "status", "priority", "dueDate", "createdAt", "updatedAt"
+    );
     private final TaskCacheService taskCacheService;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final ExpenseRepository expenseRepository;
     private final ProjectRepository projectRepository;
+    private final MemberRepository memberRepository;
+    private final TaskAssignmentRepository assignmentRepository;
+    private final TaskAcceptanceCriterionRepository criterionRepository;
+    private final TaskReviewRepository reviewRepository;
     private final TaskMapper taskMapper;
+    private final TaskWorkflowMapper workflowMapper;
     private final ExpenseMapper expenseMapper;
     private final SecurityUtils securityUtils;
         private final ApplicationEventPublisher eventPublisher;
 
-    private Task ensureTaskAvailable(Long userId, Long taskId) {
-        return taskRepository.findByIdAndUserId(taskId, userId)
+    private Task ensureTaskMutable(Long userId, Long taskId) {
+        Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+        if (task.getProject() == null) {
+            if (!task.getUser().getId().equals(userId)) {
+                throw new ResourceNotFoundException("Task not found!");
+            }
+            return task;
+        }
+        ProjectMember membership = memberRepository.findByProjectIdAndUserId(
+                        task.getProject().getId(), userId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+        if (membership.getRole() != ProjectRole.OWNER
+                && membership.getRole() != ProjectRole.MANAGER) {
+            throw new ForbiddenException("Project task management requires OWNER or MANAGER role");
+        }
+        return task;
+    }
+
+    private Task ensureTaskReadable(Long userId, Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found!"));
+        if (task.getProject() == null) {
+            if (!task.getUser().getId().equals(userId)) {
+                throw new ResourceNotFoundException("Task not found!");
+            }
+            return task;
+        }
+        if (!memberRepository.existsByProjectIdAndUserId(task.getProject().getId(), userId)) {
+            throw new ResourceNotFoundException("Task not found!");
+        }
+        return task;
     }
 
     private Project ensureProjectAvailable(Long userId, Long projectId) {
-        return projectRepository.findByIdAndUserId(projectId, userId)
+        return projectRepository.findAccessibleProject(projectId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
     }
 
     @Transactional(readOnly=true)
     public Response<TaskDetailResponse> getTaskById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
+        Task task = ensureTaskReadable(currentUser.getId(), id);
 
         Optional<TaskDetailResponse> cached = taskCacheService.get(currentUser.getId(), id);
         if(cached.isPresent()){
             return Response.success(cached.get(),"Task data retrieved successfully!");
         }
 
-        Task task = ensureTaskAvailable(currentUser.getId(), id);
-
-        List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
+        List<Expense> expenses = expenseRepository.findByTaskIdAndUserId(task.getId(), currentUser.getId());
         List<ExpenseResponse> expenseResponses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
         Double total = expenses.stream().mapToDouble(Expense::getAmount).sum();
-        TaskDetailResponse response = taskMapper.toTaskDetailResponse(task, expenseResponses, total);
+        TaskDetailResponse response = toTaskDetailResponse(task, expenseResponses, total);
 
         taskCacheService.put(currentUser.getId(), response);
 
@@ -87,74 +140,144 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public Response<List<TaskResponse>> getAllTask() {
+    public Response<PageResponse<TaskResponse>> getAllTasks(TaskFilter filter, Pageable pageable) {
         boolean isAdmin = securityUtils.isAdmin(securityUtils.getAuthentication());
         if(!isAdmin) 
             throw new ForbiddenException("Only admin can view all tasks");
 
-        List<Task> tasks =  taskRepository.findAll();
-        List<TaskResponse> taskResponses = new ArrayList<>();
-        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        validateFilter(filter);
+        PageableValidator.requireAllowedSorts(pageable, ALLOWED_SORTS);
+        Page<Task> tasksPage = taskRepository.findAll(TaskSpecifications.all(filter), pageable);
+        List<Long> taskIds = tasksPage.getContent().stream().map(Task::getId).toList();
 
         if(taskIds.isEmpty()){
-            return Response.success(new ArrayList<>(), "Task data retrieved successfully!");
+            return Response.success(PageResponse.from(tasksPage, List.of()), "Task data retrieved successfully!");
         }
         List<TaskTotalProjection> totals = expenseRepository.sumAmountsByTaskIds(taskIds);
 
         Map<Long, Double> totalMap = totals.stream()
             .collect(Collectors.toMap(TaskTotalProjection::getTaskId, TaskTotalProjection::getTotal));
 
-        for (Task task : tasks) {
-            Double total = totalMap.getOrDefault(task.getId(), 0.0);
-            TaskResponse response = taskMapper.toTaskResponse(task, total);
-            taskResponses.add(response);
-        }
-        return Response.success(taskResponses, "Task data retrieved successfully!");
+        List<TaskResponse> taskResponses = toTaskResponses(tasksPage.getContent(), totalMap, null);
+        return Response.success(PageResponse.from(tasksPage, taskResponses), "Task data retrieved successfully!");
     }
 
     @Transactional(readOnly = true)
-    public Response<List<TaskResponse>> getMyTask() {
+    public Response<PageResponse<TaskResponse>> getMyTask(TaskFilter filter, Pageable pageable) {
+        return getMyTask(filter, pageable, TaskWorkspaceView.MY_WORK);
+    }
+
+    @Transactional(readOnly = true)
+    public Response<PageResponse<TaskResponse>> getMyTask(
+            TaskFilter filter,
+            Pageable pageable,
+            TaskWorkspaceView workspace
+    ) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
+        validateFilter(filter);
+        PageableValidator.requireAllowedSorts(pageable, ALLOWED_SORTS);
 
-        List<Task> tasks = taskRepository.findByUserId(currentUser.getId());
-        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        Page<Task> tasksPage = taskRepository.findAll(
+                TaskSpecifications.forWorkspace(currentUser.getId(), workspace, filter),
+                pageable
+        );
+        List<Long> taskIds = tasksPage.getContent().stream().map(Task::getId).toList();
 
-        if(taskIds.isEmpty()){
-            return Response.success(new ArrayList<>(), "Task data retrieved successfully!");
-        }
-        List<TaskTotalProjection> totals = expenseRepository.sumAmountsByTaskIds(taskIds);
+        List<TaskTotalProjection> totals = taskIds.isEmpty()
+                ? List.of()
+                : expenseRepository.sumAmountsByTaskIdsAndUserId(taskIds, currentUser.getId());
         Map<Long, Double> totalMap = totals.stream()
+                                            .collect(Collectors
+                                                .toMap(TaskTotalProjection::getTaskId, TaskTotalProjection::getTotal));
 
-            .collect(Collectors.toMap(TaskTotalProjection::getTaskId, TaskTotalProjection::getTotal));
+        List<TaskResponse> content = toTaskResponses(tasksPage.getContent(), totalMap, currentUser.getId());
 
-        List<TaskResponse> responses = tasks.stream().map(task -> taskMapper.toTaskResponse(task, totalMap.getOrDefault(task.getId(), 0.0))).toList();
+        PageResponse<TaskResponse> result = PageResponse.from(tasksPage, content);
 
-        return Response.success(responses, "Task data retrieved successfully!");
+        return Response.success(result, "Task data retrieved successfully!");
     }
 
     @Transactional(readOnly = true)
-    public Response<List<TaskResponse>> getTasksByProject(Long projectId) {
+    public Response<PageResponse<TaskResponse>> getTasksByProject(Long projectId, TaskFilter filter, Pageable pageable) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
         ensureProjectAvailable(currentUser.getId(), projectId);
+        validateFilter(filter);
+        PageableValidator.requireAllowedSorts(pageable, ALLOWED_SORTS);
 
-        List<Task> tasks = taskRepository.findByProjectIdAndUserId(projectId, currentUser.getId());
-        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
-        if (taskIds.isEmpty()) {
-            return Response.success(List.of(), "Project tasks retrieved successfully!");
+        TaskFilter projectFilter = new TaskFilter(
+                filter.search(),
+                filter.status(),
+                filter.priority(),
+                projectId,
+                filter.dueFrom(),
+                filter.dueTo()
+        );
+        Page<Task> tasksPage = taskRepository.findAll(
+                TaskSpecifications.all(projectFilter),
+                pageable
+        );
+        List<Long> taskIds = tasksPage.getContent().stream().map(Task::getId).toList();
+        if(taskIds.isEmpty()){
+            return Response.success(PageResponse.from(tasksPage, List.of()),
+             "Task data retrieved successfully!");
         }
 
-        Map<Long, Double> totalMap = expenseRepository.sumAmountsByTaskIds(taskIds).stream()
+        Map<Long, Double> totalMap = expenseRepository
+                .sumAmountsByTaskIdsAndUserId(taskIds, currentUser.getId()).stream()
                 .collect(Collectors.toMap(
                         TaskTotalProjection::getTaskId,
                         TaskTotalProjection::getTotal
                 ));
-        List<TaskResponse> responses = tasks.stream()
+        List<TaskResponse> responses = toTaskResponses(tasksPage.getContent(), totalMap, currentUser.getId());
+        return Response.success(PageResponse.from(tasksPage, responses), "Project tasks retrieved successfully!");
+    }
+
+    private List<TaskResponse> toTaskResponses(
+            List<Task> tasks,
+            Map<Long, Double> totalMap,
+            Long currentUserId
+    ) {
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        Map<Long, TaskAssignment> assignmentMap = assignmentRepository
+                .findByTaskIdInAndStatus(taskIds, AssignmentStatus.ACTIVE).stream()
+                .collect(Collectors.toMap(assignment -> assignment.getTask().getId(), assignment -> assignment));
+
+        Map<Long, ProjectRole> roleMap = Map.of();
+        if (currentUserId != null) {
+            List<Long> projectIds = tasks.stream()
+                    .filter(task -> task.getProject() != null)
+                    .map(task -> task.getProject().getId())
+                    .distinct()
+                    .toList();
+            if (!projectIds.isEmpty()) {
+                roleMap = memberRepository.findByProjectIdInAndUserId(projectIds, currentUserId).stream()
+                        .collect(Collectors.toMap(
+                                membership -> membership.getProject().getId(),
+                                ProjectMember::getRole
+                        ));
+            }
+        }
+
+        Map<Long, ProjectRole> currentRoleMap = roleMap;
+        return tasks.stream()
                 .map(task -> taskMapper.toTaskResponse(
                         task,
-                        totalMap.getOrDefault(task.getId(), 0.0)
+                        totalMap.getOrDefault(task.getId(), 0.0),
+                        assignmentMap.get(task.getId()),
+                        task.getProject() == null ? null : currentRoleMap.get(task.getProject().getId())
                 ))
                 .toList();
-        return Response.success(responses, "Project tasks retrieved successfully!");
+    }
+
+    private void validateFilter(TaskFilter filter) {
+        if (filter.dueFrom() != null && filter.dueTo() != null
+                && filter.dueFrom().isAfter(filter.dueTo())) {
+            throw new BadRequestException("Due from must be on or before due to");
+        }
     }
 
     public Response<TaskResponse> createTask(CreateTaskRequest request){
@@ -167,7 +290,16 @@ public class TaskService {
         task.setUser(user);
         task.setStatus(TaskStatus.TODO);
         if (request.projectId() != null) {
-            task.setProject(ensureProjectAvailable(currentUser.getId(), request.projectId()));
+            Project project = ensureProjectAvailable(currentUser.getId(), request.projectId());
+            ProjectMember membership = memberRepository.findByProjectIdAndUserId(
+                            request.projectId(), currentUser.getId()
+                    )
+                    .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
+            if (membership.getRole() != ProjectRole.OWNER
+                    && membership.getRole() != ProjectRole.MANAGER) {
+                throw new ForbiddenException("Project task creation requires OWNER or MANAGER role");
+            }
+            task.setProject(project);
         }
         taskRepository.save(task);
 
@@ -179,7 +311,7 @@ public class TaskService {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
         //Không bao giờ dùng Cached để update 
         
-        Task task = ensureTaskAvailable(currentUser.getId(), id);
+        Task task = ensureTaskMutable(currentUser.getId(), id);
 
         if (request.title() != null) { 
             if (request.title().isBlank()) {
@@ -197,6 +329,11 @@ public class TaskService {
         }
         
         if (request.status() != null) {
+            if (task.getProject() != null) {
+                throw new BadRequestException(
+                        "Project task status must change through workflow endpoints"
+                );
+            }
             task.setStatus(request.status());
         }
 
@@ -205,6 +342,7 @@ public class TaskService {
         }
 
         if (request.projectId() != null) {
+            requireProjectRelationMutable(task.getId());
             if (request.projectId() == 0) {
                 task.setProject(null);
             } else {
@@ -215,11 +353,11 @@ public class TaskService {
         taskRepository.save(task);
         eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), id));
         
-        List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
+        List<Expense> expenses = expenseRepository.findByTaskIdAndUserId(task.getId(), currentUser.getId());
         List<ExpenseResponse> expenseResponses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
         Double total = expenses.stream().mapToDouble(Expense::getAmount).sum();
 
-        TaskDetailResponse response = taskMapper.toTaskDetailResponse(task, expenseResponses, total);
+        TaskDetailResponse response = toTaskDetailResponse(task, expenseResponses, total);
 
         //Không cần put(response) vì lần sau sẽ tự động nạp lại
 
@@ -229,7 +367,7 @@ public class TaskService {
     public Response<Void> deleteTaskById(Long id) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
-        Task task = ensureTaskAvailable(currentUser.getId(), id);
+        Task task = ensureTaskMutable(currentUser.getId(), id);
 
         List<Expense> expenses = expenseRepository.findByTaskId(task.getId());
         List<Long> expenseIds = expenses.stream().map(Expense::getId).toList();
@@ -249,7 +387,8 @@ public class TaskService {
     public Response<TaskResponse> unlinkFromProject(Long taskId) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
-        Task task = ensureTaskAvailable(currentUser.getId(), taskId);
+        Task task = ensureTaskMutable(currentUser.getId(), taskId);
+        requireProjectRelationMutable(taskId);
 
         task.setProject(null);
         taskRepository.save(task);
@@ -258,5 +397,45 @@ public class TaskService {
 
         TaskResponse response = taskMapper.toTaskResponse(task, 0.0);
         return Response.success(response, "Task unlinked from project successfully!");
+    }
+
+    private TaskDetailResponse toTaskDetailResponse(
+            Task task,
+            List<ExpenseResponse> expenses,
+            Double total
+    ) {
+        List<AcceptanceCriterionResponse> criteria = criterionRepository
+                .findByTaskIdOrderByPositionAsc(task.getId()).stream()
+                .map(workflowMapper::toCriterionResponse)
+                .toList();
+        TaskAssignmentResponse activeAssignment = assignmentRepository
+                .findByTaskIdAndStatus(task.getId(), AssignmentStatus.ACTIVE)
+                .map(workflowMapper::toAssignmentResponse)
+                .orElse(null);
+        List<TaskReviewResponse> reviews = reviewRepository
+                .findByTaskIdOrderByCreatedAtAsc(task.getId()).stream()
+                .map(workflowMapper::toReviewResponse)
+                .toList();
+        return taskMapper.toTaskDetailResponse(
+                task,
+                expenses,
+                total,
+                criteria,
+                activeAssignment,
+                reviews
+        );
+    }
+
+    private void requireProjectRelationMutable(Long taskId) {
+        // TODO BUSINESS RULE: define an explicit project-transfer workflow if it is needed.
+        // Current safe default prevents assignment/review history from pointing at members
+        // of a different project after a generic projectId PATCH or unlink operation.
+        if (assignmentRepository.existsByTaskId(taskId)
+                || criterionRepository.existsByTaskId(taskId)
+                || reviewRepository.existsByTaskId(taskId)) {
+            throw new BadRequestException(
+                    "Task with assignment, criteria or review history cannot change project"
+            );
+        }
     }
 }

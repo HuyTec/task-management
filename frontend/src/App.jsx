@@ -15,10 +15,12 @@ import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
+import ProjectMembersPage from './pages/ProjectMembersPage'
 import ProjectsPage from './pages/ProjectsPage'
 import RegisterPage from './pages/RegisterPage'
 import TasksPage from './pages/TasksPage'
 import TaskDetailPage from './pages/TaskDetailPage'
+import TaskCreatePage from './pages/TaskCreatePage'
 
 function RequireAuth({ children }) {
   const accessToken = localStorage.getItem('accessToken')
@@ -92,9 +94,11 @@ function App() {
         }
       />
       <Route path="/tasks" element={<RequireAuth><TasksPage /></RequireAuth>} />
+      <Route path="/tasks/new" element={<RequireAuth><TaskCreatePage /></RequireAuth>} />
       <Route path="/tasks/:taskId" element={<RequireAuth><TaskDetailPage /></RequireAuth>} />
       <Route path="/projects" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
       <Route path="/projects/:projectId" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />
+      <Route path="/projects/:projectId/members" element={<RequireAuth><ProjectMembersPage /></RequireAuth>} />
       <Route path="/expenses" element={<RequireAuth><ExpensesPage /></RequireAuth>} />
       <Route path="/expenses/:expenseId" element={<RequireAuth><ExpenseDetailPage /></RequireAuth>} />
       <Route path="*" element={<NotFoundPage />} />

@@ -20,11 +20,11 @@ function AdminDashboardPage() {
 
       try {
         const [users, tasks] = await Promise.all([
-          getAllUsers(controller.signal),
-          getAllTasks(controller.signal),
+          getAllUsers({ page: 0, size: 1 }, controller.signal),
+          getAllTasks({ page: 0, size: 1 }, controller.signal),
         ])
 
-        setSummary({ users: users.length, tasks: tasks.length })
+        setSummary({ users: users.totalElements, tasks: tasks.totalElements })
       } catch (apiError) {
         if (apiError.code !== 'ERR_CANCELED') {
           setError(getApiErrorMessage(apiError, 'Unable to load the administration summary.'))

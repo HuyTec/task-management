@@ -1,7 +1,8 @@
 package com.taskmanagement.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.expense.CreateExpenseRequest;
 import com.taskmanagement.dto.expense.ExpenseResponse;
 import com.taskmanagement.dto.expense.UpdateExpenseRequest;
@@ -30,8 +32,11 @@ public class ExpenseController {
     private final ExpenseService expenseService;
 
     @GetMapping("/me")
-    public ResponseEntity<Response<List<ExpenseResponse>>> getMyExpenses() {
-        return ResponseEntity.ok(expenseService.getMyExpenses());
+    public ResponseEntity<Response<PageResponse<ExpenseResponse>>> getMyExpenses(
+            @PageableDefault(size = 20, sort = "expenseDate", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(expenseService.getMyExpenses(pageable));
     }
 
     @GetMapping("/{id}")

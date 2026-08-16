@@ -1,6 +1,7 @@
 package com.taskmanagement.service.user;
 import org.springframework.stereotype.Service;
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.model.User;
 import com.taskmanagement.model.UserRole;
 import com.taskmanagement.dto.user.UserResponse;
@@ -11,9 +12,10 @@ import lombok.RequiredArgsConstructor;
 
 import com.taskmanagement.dto.user.CreateUserRequest;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import java.util.Set;
+import com.taskmanagement.utils.PageableValidator;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.taskmanagement.exception.DuplicatedResourceException;
@@ -25,6 +27,9 @@ import com.taskmanagement.dto.user.UpdateUserRequest;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final Set<String> ALLOWED_SORTS = Set.of(
+            "username", "displayName", "email", "role", "createdAt", "isDeactivated"
+    );
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
@@ -118,14 +123,13 @@ public class UserService {
     }
 
 //_________________________________________________________________________________________________________________
-    public Response<List<UserResponse>> getAllUsers() {
-        List<User> users =  userRepository.findAll();
-        List<UserResponse> userResponses = new ArrayList<>();
-        for(User user: users){
-            UserResponse userResponse = userMapper.toUserResponse(user);
-            userResponses.add(userResponse);
-        }
-        return Response.success(userResponses, "All user retrieved successfully!");
+    public Response<PageResponse<UserResponse>> getAllUsers(Pageable pageable) {
+        PageableValidator.requireAllowedSorts(pageable, ALLOWED_SORTS);
+        Page<User> users = userRepository.findAll(pageable);
+        var responses = users.getContent().stream()
+                .map(userMapper::toUserResponse)
+                .toList();
+        return Response.success(PageResponse.from(users, responses), "All users retrieved successfully!");
     }
 
     public Response<UserResponse> createUser(CreateUserRequest user) {

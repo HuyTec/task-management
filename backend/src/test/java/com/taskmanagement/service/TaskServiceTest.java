@@ -6,6 +6,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,20 +18,33 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
+import com.taskmanagement.dto.task.TaskFilter;
+import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.task.UpdateTaskRequest;
 import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 import com.taskmanagement.exception.ResourceNotFoundException;
 import com.taskmanagement.mapper.ExpenseMapper;
 import com.taskmanagement.mapper.TaskMapper;
+import com.taskmanagement.mapper.TaskWorkflowMapper;
 import com.taskmanagement.model.Project;
+import com.taskmanagement.model.ProjectMember;
+import com.taskmanagement.model.ProjectRole;
 import com.taskmanagement.model.TaskStatus;
 import com.taskmanagement.model.User;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.repository.ExpenseRepository;
 import com.taskmanagement.repository.ProjectRepository;
+import com.taskmanagement.repository.MemberRepository;
+import com.taskmanagement.repository.TaskAcceptanceCriterionRepository;
+import com.taskmanagement.repository.TaskAssignmentRepository;
+import com.taskmanagement.repository.TaskReviewRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
@@ -48,11 +63,35 @@ class TaskServiceTest {
     @Mock private ExpenseMapper expenseMapper;
     @Mock private SecurityUtils securityUtils;
     @Mock private ProjectRepository projectRepository;
+    @Mock private MemberRepository memberRepository;
+    @Mock private TaskAssignmentRepository assignmentRepository;
+    @Mock private TaskAcceptanceCriterionRepository criterionRepository;
+    @Mock private TaskReviewRepository reviewRepository;
+    @Mock private TaskWorkflowMapper workflowMapper;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CustomUserDetails currentUser;
 
     @InjectMocks
     private TaskService taskService;
+
+    @Test
+    void getMyTasksReturnsAnEmptyPageWithoutQueryingExpenseTotals() {
+        Long userId = 7L;
+        PageRequest pageable = PageRequest.of(0, 20);
+        TaskFilter filter = new TaskFilter(null, null, null, null, null, null);
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(taskRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Task>>any(), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        Response<PageResponse<TaskResponse>> response = taskService.getMyTask(filter, pageable);
+
+        assertThat(response.data().content()).isEmpty();
+        assertThat(response.data().first()).isTrue();
+        assertThat(response.data().last()).isTrue();
+        verify(expenseRepository, never()).sumAmountsByTaskIds(any());
+    }
 
     @Test
     void createTaskShouldFailWhenCurrentUserNoLongerExists() {
@@ -79,12 +118,18 @@ class TaskServiceTest {
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
+        Task readableTask = new Task();
+        User owner = new User();
+        owner.setId(userId);
+        readableTask.setUser(owner);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(readableTask));
         when(taskCacheService.get(userId, taskId)).thenReturn(Optional.of(cachedTask));
 
         Response<TaskDetailResponse> response = taskService.getTaskById(taskId);
 
         assertThat(response.data()).isEqualTo(cachedTask);
         verify(taskCacheService).get(userId, taskId);
+        verify(taskRepository).findById(taskId);
         verify(taskRepository, never()).findByIdAndUserId(taskId, userId);
     }
 
@@ -98,13 +143,17 @@ class TaskServiceTest {
         Task task = new Task();
         User user = new User();
         Project project = new Project();
+        project.setId(projectId);
+        ProjectMember ownerMembership = membership(project, user, ProjectRole.OWNER);
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
         when(taskMapper.toTask(request)).thenReturn(task);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(projectRepository.findByIdAndUserId(projectId, userId))
+        when(projectRepository.findAccessibleProject(projectId, userId))
                 .thenReturn(Optional.of(project));
+        when(memberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(ownerMembership));
 
         taskService.createTask(request);
 
@@ -127,7 +176,7 @@ class TaskServiceTest {
         when(currentUser.getId()).thenReturn(userId);
         when(taskMapper.toTask(request)).thenReturn(task);
         when(userRepository.findById(userId)).thenReturn(Optional.of(new User()));
-        when(projectRepository.findByIdAndUserId(projectId, userId))
+        when(projectRepository.findAccessibleProject(projectId, userId))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.createTask(request))
@@ -142,6 +191,7 @@ class TaskServiceTest {
         Long userId = 7L;
         Long taskId = 42L;
         Project project = new Project();
+        project.setId(12L);
         Task task = new Task();
         task.setId(taskId);
         task.setTitle("Keep this title");
@@ -153,9 +203,9 @@ class TaskServiceTest {
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
-        when(taskRepository.findByIdAndUserId(taskId, userId)).thenReturn(Optional.of(task));
-        when(expenseRepository.findByTaskId(taskId)).thenReturn(List.of());
-
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(memberRepository.findByProjectIdAndUserId(12L, userId))
+                .thenReturn(Optional.of(membership(project, new User(), ProjectRole.MANAGER)));
         taskService.updateTask(taskId, request);
 
         assertThat(task.getProject()).isNull();
@@ -170,11 +220,15 @@ class TaskServiceTest {
         Long userId = 7L;
         Long taskId = 42L;
         Task task = new Task();
-        task.setProject(new Project());
+        Project project = new Project();
+        project.setId(12L);
+        task.setProject(project);
 
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(userId);
-        when(taskRepository.findByIdAndUserId(taskId, userId)).thenReturn(Optional.of(task));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(memberRepository.findByProjectIdAndUserId(12L, userId))
+                .thenReturn(Optional.of(membership(project, new User(), ProjectRole.OWNER)));
 
         taskService.unlinkFromProject(taskId);
 
@@ -184,5 +238,13 @@ class TaskServiceTest {
                 new com.taskmanagement.event.TaskCacheEvictEvent(userId, taskId)
         );
         verify(taskRepository, never()).delete(task);
+    }
+
+    private ProjectMember membership(Project project, User user, ProjectRole role) {
+        ProjectMember membership = new ProjectMember();
+        membership.setProject(project);
+        membership.setUser(user);
+        membership.setRole(role);
+        return membership;
     }
 }

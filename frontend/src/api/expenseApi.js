@@ -26,7 +26,7 @@ export async function unlinkExpenseFromTask(expenseId, signal) {
   return response.data.data
 }
 
-export async function getMyExpenses(signal) {
-  const response = await apiClient.get('/expenses/me', { signal })
+export async function getMyExpenses(params = {}, signal) {
+  const response = await apiClient.get('/expenses/me', { params, signal })
   return response.data.data
 }

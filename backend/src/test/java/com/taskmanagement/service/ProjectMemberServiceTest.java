@@ -16,8 +16,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.project.AddProjectMemberRequest;
 import com.taskmanagement.dto.project.ProjectMemberResponse;
 import com.taskmanagement.exception.BadRequestException;
@@ -26,24 +29,24 @@ import com.taskmanagement.model.Project;
 import com.taskmanagement.model.ProjectMember;
 import com.taskmanagement.model.ProjectRole;
 import com.taskmanagement.model.User;
-import com.taskmanagement.repository.ProjectMemberRepository;
-import com.taskmanagement.repository.ProjectRepository;
+import com.taskmanagement.repository.MemberRepository;
+import com.taskmanagement.repository.TaskAssignmentRepository;
 import com.taskmanagement.repository.UserRepository;
 import com.taskmanagement.security.CustomUserDetails;
-import com.taskmanagement.service.project.ProjectMemberService;
+import com.taskmanagement.service.project.MemberService;
 import com.taskmanagement.utils.SecurityUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ProjectMemberServiceTest {
 
-    @Mock private ProjectRepository projectRepository;
-    @Mock private ProjectMemberRepository projectMemberRepository;
+    @Mock private MemberRepository projectMemberRepository;
     @Mock private UserRepository userRepository;
+    @Mock private TaskAssignmentRepository taskAssignmentRepository;
     @Mock private SecurityUtils securityUtils;
     @Mock private CustomUserDetails currentUser;
 
     @InjectMocks
-    private ProjectMemberService projectMemberService;
+    private MemberService projectMemberService;
 
     @Test
     void ownerCanListMembersWithoutExposingIds() {
@@ -53,14 +56,17 @@ class ProjectMemberServiceTest {
         User memberUser = user(9L, "lan", "Lan", "lan@example.com");
         ProjectMember membership = membership(project, memberUser, ProjectRole.MEMBER);
         membership.setJoinedAt(LocalDateTime.of(2026, 8, 14, 9, 30));
+        PageRequest pageable = PageRequest.of(0, 20);
         stubOwner(projectId, ownerId, project);
-        when(projectMemberRepository.findByProjectId(projectId)).thenReturn(List.of(membership));
+        when(projectMemberRepository.findByProjectId(projectId, pageable))
+                .thenReturn(new PageImpl<>(List.of(membership), pageable, 1));
 
-        Response<List<ProjectMemberResponse>> response = projectMemberService.getMembers(projectId);
+        Response<PageResponse<ProjectMemberResponse>> response = projectMemberService.getMembers(projectId, null, pageable);
 
-        assertThat(response.data()).containsExactly(new ProjectMemberResponse(
+        assertThat(response.data().content()).containsExactly(new ProjectMemberResponse(
                 "lan", "Lan", "lan@example.com", ProjectRole.MEMBER, membership.getJoinedAt()
         ));
+        assertThat(response.data().totalElements()).isEqualTo(1);
     }
 
     @Test
@@ -93,7 +99,7 @@ class ProjectMemberServiceTest {
 
         assertThatThrownBy(() -> projectMemberService.removeMember(projectId, "owner"))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Project owner cannot be removed");
+                .hasMessage("Project owner cannot be modified or removed");
 
         verify(projectMemberRepository, never()).delete(ownerMembership);
         verifyNoInteractions(userRepository);
@@ -102,7 +108,12 @@ class ProjectMemberServiceTest {
     private void stubOwner(Long projectId, Long ownerId, Project project) {
         when(securityUtils.getCurrentUser()).thenReturn(currentUser);
         when(currentUser.getId()).thenReturn(ownerId);
-        when(projectRepository.findByIdAndUserId(projectId, ownerId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, ownerId))
+                .thenReturn(Optional.of(membership(
+                        project,
+                        user(ownerId, "owner", "Owner", "owner@example.com"),
+                        ProjectRole.OWNER
+                )));
     }
 
     private User user(Long id, String username, String displayName, String email) {

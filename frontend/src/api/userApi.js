@@ -10,8 +10,8 @@ export async function updateMyProfile(profile, signal) {
   return response.data.data
 }
 
-export async function getAllUsers(signal) {
-  const response = await apiClient.get('/users', { signal })
+export async function getAllUsers(params = {}, signal) {
+  const response = await apiClient.get('/users', { params, signal })
   return response.data.data
 }
 

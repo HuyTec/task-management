@@ -18,7 +18,29 @@ public record TaskDetailResponse(
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
     LocalDate dueDate,
+    List<AcceptanceCriterionResponse> acceptanceCriteria,
+    TaskAssignmentResponse activeAssignment,
+    List<TaskReviewResponse> reviews,
     List<ExpenseResponse> expenses,
     Double total
 ) {
+    public TaskDetailResponse(
+            Long id,
+            String title,
+            String description,
+            TaskStatus status,
+            TaskPriority priority,
+            Long userId,
+            Long projectId,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            LocalDate dueDate,
+            List<ExpenseResponse> expenses,
+            Double total
+    ) {
+        this(
+                id, title, description, status, priority, userId, projectId,
+                createdAt, updatedAt, dueDate, List.of(), null, List.of(), expenses, total
+        );
+    }
 }

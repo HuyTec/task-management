@@ -4,6 +4,8 @@ import com.taskmanagement.model.ExpenseCategory;
 import com.taskmanagement.repository.projection.TaskTotalProjection;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
@@ -12,10 +14,25 @@ import java.util.Optional;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByUserId(Long userId);
+    Page<Expense> findByUserId(Long userId, Pageable pageable);
 
     Optional<Expense> findByIdAndUserId(Long id, Long userId);
 
     List<Expense> findByTaskId(Long taskId);
+
+    List<Expense> findByTaskIdAndUserId(Long taskId, Long userId);
+
+    @Query("""
+        SELECT e.task.id AS taskId, SUM(e.amount) AS total
+        FROM Expense e
+        WHERE e.task.id IN :taskIds
+          AND e.user.id = :userId
+        GROUP BY e.task.id
+        """)
+    List<TaskTotalProjection> sumAmountsByTaskIdsAndUserId(
+            @Param("taskIds") List<Long> taskIds,
+            @Param("userId") Long userId
+    );
     
     @Query("SELECT e FROM Expense e WHERE e.user.id = :userId " +
         "AND (:keyword IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +

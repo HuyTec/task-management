@@ -1,20 +1,25 @@
 package com.taskmanagement.controller;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import java.util.List;
 
 import com.taskmanagement.service.task.TaskService;
+
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.task.TaskDetailResponse;
+import com.taskmanagement.dto.task.TaskFilter;
 import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.UpdateTaskRequest;
-
+import com.taskmanagement.dto.task.TaskWorkspaceView;
+import org.springframework.data.domain.Sort;
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
@@ -24,14 +29,33 @@ public class TaskController {
     // ADMIN ONLY — xem toàn bộ task trong hệ thống
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Response<List<TaskResponse>>> getAllTasks() {
-        return ResponseEntity.ok(taskService.getAllTask());
+    public ResponseEntity<Response<PageResponse<TaskResponse>>> getAllTasks(
+            @Valid @ModelAttribute TaskFilter filter,
+            @PageableDefault(
+                    page = 0,
+                    size = 20,
+                    sort = "dueDate",
+                    direction = Sort.Direction.ASC
+            )
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(taskService.getAllTasks(filter, pageable));
     }
 
     // SELF — user xem task của chính mình (Dashboard)
     @GetMapping("/me")
-    public ResponseEntity<Response<List<TaskResponse>>> getMyTasks() {
-        return ResponseEntity.ok(taskService.getMyTask());
+    public ResponseEntity<Response<PageResponse<TaskResponse>>> getMyTasks(
+            @Valid @ModelAttribute TaskFilter filter,
+            @RequestParam(defaultValue = "MY_WORK") TaskWorkspaceView workspace,
+            @PageableDefault(
+                    page = 0,
+                    size = 20,
+                    sort = "dueDate",
+                    direction = Sort.Direction.ASC
+            )
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(taskService.getMyTask(filter, pageable, workspace));
     }
 
     // SELF/ADMIN — ownership check nằm trong Service (ensureTaskAvailable)

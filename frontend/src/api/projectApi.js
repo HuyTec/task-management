@@ -1,12 +1,12 @@
 import apiClient from './apiClient'
 
-export async function getAllProjects(signal) {
-  const response = await apiClient.get('/projects', { signal })
+export async function getAllProjects(params = {}, signal) {
+  const response = await apiClient.get('/projects', { params, signal })
   return response.data.data
 }
 
-export async function getMyProjects(signal) {
-  const response = await apiClient.get('/projects/me', { signal })
+export async function getMyProjects(params = {}, signal) {
+  const response = await apiClient.get('/projects/me', { params, signal })
   return response.data.data
 }
 
@@ -15,13 +15,18 @@ export async function getProjectById(projectId, signal) {
   return response.data.data
 }
 
-export async function getProjectTasks(projectId, signal) {
-  const response = await apiClient.get(`/projects/${projectId}/tasks`, { signal })
+export async function getProjectTasks(projectId, params = {}, signal) {
+  const response = await apiClient.get(`/projects/${projectId}/tasks`, { params, signal })
   return response.data.data
 }
 
-export async function getProjectMembers(projectId, signal) {
-  const response = await apiClient.get(`/projects/${projectId}/members`, { signal })
+export async function getProjectMembers(projectId, params = {}, signal) {
+  const response = await apiClient.get(`/projects/${projectId}/members`, { params, signal })
+  return response.data.data
+}
+
+export async function getMyProjectMembership(projectId, signal) {
+  const response = await apiClient.get(`/projects/${projectId}/members/me`, { signal })
   return response.data.data
 }
 
@@ -32,6 +37,15 @@ export async function addProjectMember(projectId, memberData, signal) {
 
 export async function removeProjectMember(projectId, username, signal) {
   const response = await apiClient.delete(`/projects/${projectId}/members/${encodeURIComponent(username)}`, { signal })
+  return response.data.data
+}
+
+export async function updateProjectMemberRole(projectId, username, role, signal) {
+  const response = await apiClient.patch(
+    `/projects/${projectId}/members/${encodeURIComponent(username)}/role`,
+    { role },
+    { signal },
+  )
   return response.data.data
 }
 

@@ -1,7 +1,7 @@
 import apiClient from './apiClient'
 
-export async function getAllTasks(signal) {
-  const response = await apiClient.get('/tasks', { signal })
+export async function getAllTasks(params = {}, signal) {
+  const response = await apiClient.get('/tasks', { params, signal })
   return response.data.data
 }
 
@@ -25,7 +25,62 @@ export async function deleteTaskById(taskId, signal) {
   return response.data.data
 }
 
-export async function getMyTasks(signal) {
-  const response = await apiClient.get('/tasks/me', { signal })
+export async function getMyTasks(params = {}, signal) {
+  const response = await apiClient.get('/tasks/me', { params, signal })
+  return response.data.data
+}
+
+export async function claimTask(taskId, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/claim`, null, { signal })
+  return response.data.data
+}
+
+export async function releaseTaskClaim(taskId, signal) {
+  const response = await apiClient.delete(`/tasks/${taskId}/claim`, { signal })
+  return response.data.data
+}
+
+export async function assignTask(taskId, username, signal) {
+  const response = await apiClient.put(`/tasks/${taskId}/assignee`, { username }, { signal })
+  return response.data.data
+}
+
+export async function clearTaskAssignee(taskId, signal) {
+  const response = await apiClient.delete(`/tasks/${taskId}/assignee`, { signal })
+  return response.data.data
+}
+
+export async function startTask(taskId, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/start`, null, { signal })
+  return response.data.data
+}
+
+export async function addTaskCriterion(taskId, criterionData, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/criteria`, criterionData, { signal })
+  return response.data.data
+}
+
+export async function updateTaskCriterion(taskId, criterionId, criterionData, signal) {
+  const response = await apiClient.patch(`/tasks/${taskId}/criteria/${criterionId}`, criterionData, { signal })
+  return response.data.data
+}
+
+export async function deleteTaskCriterion(taskId, criterionId, signal) {
+  const response = await apiClient.delete(`/tasks/${taskId}/criteria/${criterionId}`, { signal })
+  return response.data.data
+}
+
+export async function submitTaskForReview(taskId, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/submit-review`, null, { signal })
+  return response.data.data
+}
+
+export async function requestTaskChanges(taskId, message, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/request-changes`, { message }, { signal })
+  return response.data.data
+}
+
+export async function approveTask(taskId, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/approve`, null, { signal })
   return response.data.data
 }

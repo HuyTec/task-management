@@ -2,7 +2,7 @@ package com.taskmanagement.model;
 
 public enum ProjectRole {
     OWNER,
-    ADMIN,
+    MANAGER,
     MEMBER,
     VIEWER
 }

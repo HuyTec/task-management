@@ -1,22 +1,35 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
-import { createTask, deleteTaskById, getMyTasks, getTaskById, updateTaskById } from '../api/taskApi'
+import { deleteTaskById, getMyTasks, getTaskById, updateTaskById } from '../api/taskApi'
 import { getMyProjects } from '../api/projectApi'
 import AppHeader from '../components/layout/AppHeader'
+import Pagination from '../components/layout/Pagination'
 import TaskCard from '../components/tasks/TaskCard'
 import TaskForm from '../components/tasks/TaskForm'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
+import { decrementPageTotal } from '../utils/pageUtils'
 
 const COLUMNS = [
   ['TODO', 'To do', 'Ready to begin'],
   ['IN_PROGRESS', 'In progress', 'Work in motion'],
+  ['IN_REVIEW', 'In review', 'Waiting for review'],
+  ['CHANGES_REQUESTED', 'Changes requested', 'Needs revision'],
   ['DONE', 'Done', 'Completed outcomes'],
-  ['BLOCKED', 'Blocked', 'Needs attention'],
+]
+
+const WORKSPACES = [
+  ['MY_WORK', 'My work', 'Personal tasks and active Project assignments'],
+  ['REVIEW_QUEUE', 'Review queue', 'Project tasks waiting for your decision'],
+  ['ALL_ACCESSIBLE', 'All accessible', 'Every task visible through your projects'],
 ]
 
 function TasksPage() {
   const [tasks, setTasks] = useState([])
+  const [taskPage, setTaskPage] = useState(null)
   const [projects, setProjects] = useState([])
+  const [searchInput, setSearchInput] = useState('')
+  const [query, setQuery] = useState({ page: 0, size: 20, search: '', status: '', priority: '', workspace: 'MY_WORK' })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [busyTaskId, setBusyTaskId] = useState(null)
@@ -29,28 +42,26 @@ function TasksPage() {
     setIsLoading(true)
     setError('')
     try {
-      const [taskData, projectData] = await Promise.all([getMyTasks(signal), getMyProjects(signal)])
-      setTasks(taskData)
-      setProjects(projectData)
+      const params = Object.fromEntries(Object.entries(query).filter(([, value]) => value !== ''))
+      const [taskData, projectData] = await Promise.all([
+        getMyTasks(params, signal),
+        getMyProjects({ page: 0, size: 100, sort: 'name,asc' }, signal),
+      ])
+      setTasks(taskData.content)
+      setTaskPage(taskData)
+      setProjects(projectData.content)
     } catch (apiError) {
       if (apiError.code !== 'ERR_CANCELED') setError(getApiErrorMessage(apiError, 'Unable to load your tasks.'))
     } finally {
       if (!signal?.aborted) setIsLoading(false)
     }
-  }, [])
+  }, [query])
 
   useEffect(() => {
     const controller = new AbortController()
     loadTasks(controller.signal)
     return () => controller.abort()
   }, [loadTasks])
-
-  function openCreate() {
-    setEditingTask(null)
-    setShowForm(true)
-    setError('')
-    setSuccess('')
-  }
 
   async function openEdit(task) {
     setBusyTaskId(task.id)
@@ -70,13 +81,8 @@ function TasksPage() {
     setError('')
     setSuccess('')
     try {
-      if (editingTask) {
-        await updateTaskById(editingTask.id, payload)
-        setSuccess('Task updated successfully.')
-      } else {
-        await createTask(payload)
-        setSuccess('Task created successfully.')
-      }
+      await updateTaskById(editingTask.id, payload)
+      setSuccess('Task updated successfully.')
       setShowForm(false)
       setEditingTask(null)
       await loadTasks()
@@ -96,6 +102,10 @@ function TasksPage() {
     try {
       await updateTaskById(task.id, { status })
       setSuccess(`“${task.title}” moved successfully.`)
+      if (query.status && query.status !== status) {
+        setTasks((current) => current.filter((item) => item.id !== task.id))
+        setTaskPage(decrementPageTotal)
+      }
     } catch (apiError) {
       setError(getApiErrorMessage(apiError, 'Unable to move the task.'))
       setTasks((current) => current.map((item) => item.id === task.id ? { ...item, status: previousStatus } : item))
@@ -110,8 +120,13 @@ function TasksPage() {
     setError('')
     try {
       await deleteTaskById(task.id)
-      setTasks((current) => current.filter((item) => item.id !== task.id))
       setSuccess('Task deleted successfully.')
+      if (tasks.length === 1 && query.page > 0) {
+        setQuery((current) => ({ ...current, page: current.page - 1 }))
+      } else {
+        setTasks((current) => current.filter((item) => item.id !== task.id))
+        setTaskPage(decrementPageTotal)
+      }
     } catch (apiError) {
       setError(getApiErrorMessage(apiError, 'Unable to delete the task.'))
     } finally {
@@ -123,7 +138,20 @@ function TasksPage() {
     event.preventDefault()
     const taskId = Number(event.dataTransfer.getData('text/plain'))
     const task = tasks.find((item) => item.id === taskId)
-    if (task) moveTask(task, status)
+    if (task && task.projectId == null) moveTask(task, status)
+  }
+
+  function updateFilter(name, value) {
+    setQuery((current) => ({ ...current, [name]: value, page: 0 }))
+  }
+
+  function selectWorkspace(workspace) {
+    setQuery((current) => ({ ...current, workspace, status: workspace === 'REVIEW_QUEUE' ? '' : current.status, page: 0 }))
+  }
+
+  function submitSearch(event) {
+    event.preventDefault()
+    updateFilter('search', searchInput.trim())
   }
 
   return (
@@ -131,14 +159,23 @@ function TasksPage() {
       <AppHeader />
       <section className="dashboard-content dashboard-content--wide">
         <div className="page-heading">
-          <div><p className="eyebrow">Personal workflow</p><h1>Your task board.</h1><p className="dashboard-lead">Organize work by outcome and move each task as its state changes.</p></div>
-          <button className="primary-button primary-button--fit" type="button" onClick={openCreate}>New task</button>
+          <div><p className="eyebrow">Workspaces</p><h1>Your task board.</h1><p className="dashboard-lead">Follow work you own, then switch to the review queue when a project decision is required.</p></div>
+          <Link className="primary-button primary-button--fit" to="/tasks/new">New task</Link>
         </div>
         {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
         {success && <p className="form-alert form-alert--success" role="status">{success}</p>}
         {showForm && <TaskForm initialTask={editingTask} projects={projects} isSaving={isSaving} onCancel={() => setShowForm(false)} onSubmit={saveTask} />}
+        <nav className="workspace-switcher" aria-label="Task workspace">
+          {WORKSPACES.map(([value, label, description]) => <button className={query.workspace === value ? 'workspace-switcher__item workspace-switcher__item--active' : 'workspace-switcher__item'} type="button" key={value} onClick={() => selectWorkspace(value)}><strong>{label}</strong><span>{description}</span></button>)}
+        </nav>
+        <form className="list-toolbar" onSubmit={submitSearch}>
+          <label className="form-field list-toolbar__search"><span>Search</span><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search title or description" maxLength="100" /></label>
+          <label className="form-field"><span>Status</span><select value={query.status} onChange={(event) => updateFilter('status', event.target.value)}><option value="">All statuses</option>{COLUMNS.map(([status, title]) => <option key={status} value={status}>{title}</option>)}</select></label>
+          <label className="form-field"><span>Priority</span><select value={query.priority} onChange={(event) => updateFilter('priority', event.target.value)}><option value="">All priorities</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select></label>
+          <button className="primary-button primary-button--fit" type="submit">Search</button>
+        </form>
         {isLoading ? <p className="dashboard-lead">Loading your board...</p> : (
-          <div className="kanban-board">
+          <><p className="page-context">{WORKSPACES.find(([value]) => value === query.workspace)?.[1]} shows {tasks.length} task{tasks.length === 1 ? '' : 's'} on this page, from {taskPage?.totalElements || 0} matching tasks.</p><div className="kanban-board">
             {COLUMNS.map(([status, title, note]) => {
               const columnTasks = tasks.filter((task) => task.status === status)
               return (
@@ -156,7 +193,7 @@ function TasksPage() {
                 </section>
               )
             })}
-          </div>
+          </div><Pagination page={taskPage} label="tasks" onPageChange={(page) => setQuery((current) => ({ ...current, page }))} /></>
         )}
       </section>
     </main>

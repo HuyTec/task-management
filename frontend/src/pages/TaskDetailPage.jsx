@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { createExpense } from '../api/expenseApi'
+import { getMyProjectMembership, getProjectMembers } from '../api/projectApi'
 import { getTaskById } from '../api/taskApi'
 import ExpenseForm from '../components/expenses/ExpenseForm'
 import AppHeader from '../components/layout/AppHeader'
+import TaskWorkflowPanel from '../components/tasks/TaskWorkflowPanel'
 import { formatDate, formatDateTime, formatEnum, formatMoney } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 
@@ -16,26 +18,52 @@ function TaskDetailPage() {
   const [success, setSuccess] = useState('')
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [isSavingExpense, setIsSavingExpense] = useState(false)
+  const [membership, setMembership] = useState(null)
+  const [projectMembers, setProjectMembers] = useState([])
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState(false)
+  const [workflowError, setWorkflowError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+
+  const loadTask = useCallback(async (signal, showPageLoading = true, loadWorkflowContext = true) => {
+    if (showPageLoading) {
+      setIsLoading(true)
+      setTask(null)
+    }
+    setError('')
+    try {
+      const taskData = await getTaskById(taskId, signal)
+      setTask(taskData)
+
+      if (loadWorkflowContext && taskData.projectId != null) {
+        setMembership(null)
+        setProjectMembers([])
+        setWorkflowError('')
+        setIsWorkflowLoading(true)
+        try {
+          const membershipData = await getMyProjectMembership(taskData.projectId, signal)
+          setMembership(membershipData)
+          if (membershipData.role === 'OWNER' || membershipData.role === 'MANAGER') {
+            const memberPage = await getProjectMembers(taskData.projectId, { page: 0, size: 100, sort: 'joinedAt,asc' }, signal)
+            setProjectMembers(memberPage.content)
+          }
+        } catch (apiError) {
+          if (apiError.code !== 'ERR_CANCELED') setWorkflowError(getApiErrorMessage(apiError, 'Unable to load workflow permissions.'))
+        } finally {
+          if (!signal?.aborted) setIsWorkflowLoading(false)
+        }
+      }
+    } catch (apiError) {
+      if (apiError.code !== 'ERR_CANCELED') setError(getApiErrorMessage(apiError, 'Unable to load this task.'))
+    } finally {
+      if (!signal?.aborted && showPageLoading) setIsLoading(false)
+    }
+  }, [taskId])
 
   useEffect(() => {
     const controller = new AbortController()
-
-    async function loadTask() {
-      setIsLoading(true)
-      setError('')
-      try {
-        setTask(await getTaskById(taskId, controller.signal))
-      } catch (apiError) {
-        if (apiError.code !== 'ERR_CANCELED') setError(getApiErrorMessage(apiError, 'Unable to load this task.'))
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false)
-      }
-    }
-
-    loadTask()
+    loadTask(controller.signal)
     return () => controller.abort()
-  }, [taskId, reloadKey])
+  }, [loadTask, reloadKey])
 
   async function addExpense(payload) {
     setIsSavingExpense(true)
@@ -78,6 +106,14 @@ function TaskDetailPage() {
               <div><dt>Created</dt><dd>{formatDateTime(task.createdAt)}</dd></div>
               <div><dt>Last updated</dt><dd>{formatDateTime(task.updatedAt)}</dd></div>
             </dl>
+
+            {task.projectId != null && (
+              <>
+                {isWorkflowLoading && <p className="dashboard-lead workflow-loading">Loading assignment and review controls...</p>}
+                {workflowError && <p className="form-alert form-alert--error" role="alert">{workflowError}</p>}
+                {!isWorkflowLoading && membership && <TaskWorkflowPanel task={task} membership={membership} members={projectMembers} onChanged={() => loadTask(undefined, false, false)} />}
+              </>
+            )}
 
             <section className="detail-section">
               <div className="section-heading">

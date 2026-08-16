@@ -1,11 +1,12 @@
 package com.taskmanagement.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,16 +15,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.taskmanagement.dto.Response;
+import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.project.CreateProjectRequest;
-import com.taskmanagement.dto.project.AddProjectMemberRequest;
-import com.taskmanagement.dto.project.ProjectMemberResponse;
+import com.taskmanagement.dto.task.TaskFilter;
 import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.project.ProjectResponse;
 import com.taskmanagement.dto.project.UpdateProjectRequest;
 import com.taskmanagement.service.project.ProjectService;
-import com.taskmanagement.service.project.ProjectMemberService;
 import com.taskmanagement.service.task.TaskService;
-
+import org.springframework.data.domain.Sort;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -34,18 +34,26 @@ import lombok.RequiredArgsConstructor;
 public class ProjectController {
 
     private final ProjectService projectService;
-    private final ProjectMemberService projectMemberService;
-
     private final TaskService taskService;
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Response<List<ProjectResponse>>> getAllProjects() {
-        return ResponseEntity.ok(projectService.getAllProjects());
+    public ResponseEntity<Response<PageResponse<ProjectResponse>>> getAllProjects(
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(projectService.getAllProjects(pageable));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<Response<List<ProjectResponse>>> getMyProjects() {
-        return ResponseEntity.ok(projectService.getMyProjects());
+    public ResponseEntity<Response<PageResponse<ProjectResponse>>> getMyProjects(
+            @PageableDefault(
+                    size = 20,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            )
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(projectService.getMyProjects(pageable));
     }
 
     @GetMapping("/{id}")
@@ -64,10 +72,18 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}/tasks")
-    public ResponseEntity<Response<List<TaskResponse>>> getProjectTasks(
-            @PathVariable @Positive Long id
+    public ResponseEntity<Response<PageResponse<TaskResponse>>> getProjectTasks(
+            @PathVariable @Positive Long id,
+            @Valid @ModelAttribute TaskFilter filter,
+            @PageableDefault(
+                    page = 0,
+                    size = 20,
+                    sort = "dueDate",
+                    direction = Sort.Direction.ASC
+            )
+            Pageable pageable
     ) {
-        return ResponseEntity.ok(taskService.getTasksByProject(id));
+        return ResponseEntity.ok(taskService.getTasksByProject(id, filter, pageable));
     }
 
     @PatchMapping("/{id}")
@@ -81,28 +97,5 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Response<Void>> deleteProject(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(projectService.deleteProject(id));
-    }
-
-    @GetMapping("/{id}/members")
-    public ResponseEntity<Response<List<ProjectMemberResponse>>> getProjectMembers(
-            @PathVariable @Positive Long id
-    ) {
-        return ResponseEntity.ok(projectMemberService.getMembers(id));
-    }
-
-    @PostMapping("/{id}/members")
-    public ResponseEntity<Response<ProjectMemberResponse>> addProjectMember(
-            @PathVariable @Positive Long id,
-            @RequestBody @Valid AddProjectMemberRequest request
-    ) {
-        return ResponseEntity.ok(projectMemberService.addMember(id, request));
-    }
-
-    @DeleteMapping("/{id}/members/{username}")
-    public ResponseEntity<Response<Void>> removeProjectMember(
-            @PathVariable @Positive Long id,
-            @PathVariable String username
-    ) {
-        return ResponseEntity.ok(projectMemberService.removeMember(id, username));
     }
 }
