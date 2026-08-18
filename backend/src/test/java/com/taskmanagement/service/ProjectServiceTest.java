@@ -14,6 +14,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,6 +34,7 @@ import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.mapper.ProjectMapper;
 import com.taskmanagement.model.Project;
 import com.taskmanagement.model.ProjectRole;
+import com.taskmanagement.model.ProjectStatus;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.User;
 import com.taskmanagement.repository.MemberRepository;
@@ -279,6 +282,34 @@ class ProjectServiceTest {
         assertThatThrownBy(() -> projectService.deleteProject(projectId))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Only the project OWNER can delete a project");
+
+        verify(projectRepository, never()).delete(project);
+        verifyNoInteractions(taskRepository);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = ProjectStatus.class,
+            names = {"ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"}
+    )
+    void ownerCannotHardDeleteProjectOutsidePlanning(ProjectStatus status) {
+        Long userId = 7L;
+        Long projectId = 42L;
+        Project project = new Project();
+        project.setStatus(status);
+        User owner = new User();
+        owner.setId(userId);
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(membership(project, owner, ProjectRole.OWNER)));
+
+        assertThatThrownBy(() -> projectService.deleteProject(projectId))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage(
+                        "Only a PLANNING project can be permanently deleted; archive active projects instead"
+                );
 
         verify(projectRepository, never()).delete(project);
         verifyNoInteractions(taskRepository);

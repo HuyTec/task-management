@@ -28,6 +28,7 @@ import com.taskmanagement.mapper.ProjectMapper;
 import com.taskmanagement.model.Project;
 import com.taskmanagement.model.ProjectMember;
 import com.taskmanagement.model.ProjectRole;
+import com.taskmanagement.model.ProjectStatus;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.User;
 import com.taskmanagement.repository.ProjectRepository;
@@ -198,6 +199,11 @@ public class ProjectService {
             throw new ForbiddenException("Only the project OWNER can delete a project");
         }
         Project project = membership.getProject();
+        if (project.getStatus() != ProjectStatus.PLANNING) {
+            throw new BadRequestException(
+                    "Only a PLANNING project can be permanently deleted; archive active projects instead"
+            );
+        }
         List<Long> memberUserIds = projectMemberRepository.findByProjectId(id).stream()
                 .map(member -> member.getUser().getId())
                 .toList();
