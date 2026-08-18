@@ -30,6 +30,8 @@ import com.taskmanagement.dto.task.UpdateTaskRequest;
 import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 import com.taskmanagement.exception.ResourceNotFoundException;
+import com.taskmanagement.exception.ForbiddenException;
+import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.mapper.ExpenseMapper;
 import com.taskmanagement.mapper.TaskMapper;
 import com.taskmanagement.mapper.TaskWorkflowMapper;
@@ -240,11 +242,83 @@ class TaskServiceTest {
         verify(taskRepository, never()).delete(task);
     }
 
+    @Test
+    void updateTaskRejectsTargetProjectWithoutManagementRole() {
+        Long userId = 7L;
+        Long taskId = 42L;
+        Project sourceProject = new Project();
+        sourceProject.setId(12L);
+        Project targetProject = new Project();
+        targetProject.setId(13L);
+        Task task = new Task();
+        task.setId(taskId);
+        task.setProject(sourceProject);
+        UpdateTaskRequest request = new UpdateTaskRequest(
+                null, null, null, null, null, targetProject.getId()
+        );
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(userId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(memberRepository.findByProjectIdAndUserId(sourceProject.getId(), userId))
+                .thenReturn(Optional.of(membership(sourceProject, user(userId), ProjectRole.MANAGER)));
+        when(projectRepository.findAccessibleProject(targetProject.getId(), userId))
+                .thenReturn(Optional.of(targetProject));
+        when(memberRepository.findByProjectIdAndUserId(targetProject.getId(), userId))
+                .thenReturn(Optional.of(membership(targetProject, user(userId), ProjectRole.MEMBER)));
+
+        assertThatThrownBy(() -> taskService.updateTask(taskId, request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Project task management requires OWNER or MANAGER role");
+
+        assertThat(task.getProject()).isSameAs(sourceProject);
+        verify(taskRepository, never()).save(task);
+    }
+
+    @Test
+    void updateProjectTaskEvictsCacheForEveryProjectMember() {
+        Long actorUserId = 7L;
+        Long otherUserId = 9L;
+        Long taskId = 42L;
+        Project project = new Project();
+        project.setId(12L);
+        User creator = user(actorUserId);
+        Task task = new Task();
+        task.setId(taskId);
+        task.setUser(creator);
+        task.setProject(project);
+        task.setStatus(TaskStatus.TODO);
+        UpdateTaskRequest request = new UpdateTaskRequest(
+                "Updated title", null, null, null, null, null
+        );
+
+        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
+        when(currentUser.getId()).thenReturn(actorUserId);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(memberRepository.findByProjectIdAndUserId(project.getId(), actorUserId))
+                .thenReturn(Optional.of(membership(project, creator, ProjectRole.MANAGER)));
+        when(memberRepository.findByProjectId(project.getId())).thenReturn(List.of(
+                membership(project, creator, ProjectRole.MANAGER),
+                membership(project, user(otherUserId), ProjectRole.MEMBER)
+        ));
+
+        taskService.updateTask(taskId, request);
+
+        verify(eventPublisher).publishEvent(new TaskCacheEvictEvent(actorUserId, taskId));
+        verify(eventPublisher).publishEvent(new TaskCacheEvictEvent(otherUserId, taskId));
+    }
+
     private ProjectMember membership(Project project, User user, ProjectRole role) {
         ProjectMember membership = new ProjectMember();
         membership.setProject(project);
         membership.setUser(user);
         membership.setRole(role);
         return membership;
+    }
+
+    private User user(Long id) {
+        User user = new User();
+        user.setId(id);
+        return user;
     }
 }

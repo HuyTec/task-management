@@ -3,8 +3,8 @@ package com.taskmanagement.filter;
 import com.taskmanagement.service.auth.JwtService;
 import com.taskmanagement.service.auth.AuthSessionService;
 import com.taskmanagement.dto.auth.AccessTokenClaims;
+import com.taskmanagement.exception.AuthenticationStoreUnavailableException;
 
-import org.springframework.dao.DataAccessException;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -54,7 +54,7 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             claims = jwtService.parseAccessToken(token);
         } catch (JwtException | IllegalArgumentException ex) {
-            // Token sai signature/type/expiry/hết hạn -> không set context, để Security tự 401 ở endpoint cần auth
+            // Invalid access tokens leave the context empty so Spring Security returns 401.
             filterChain.doFilter(request, response);
             return;
         }
@@ -62,8 +62,8 @@ public class JwtFilter extends OncePerRequestFilter {
         boolean sessionActive;
         try {
             sessionActive = authSessionService.exists(claims.sessionId());
-        } catch (DataAccessException ex) {
-            // Redis unavailable -> fail-closed
+        } catch (AuthenticationStoreUnavailableException ex) {
+            // Session state cannot be verified, so authentication fails closed.
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.setContentType("application/json");
             response.getWriter().write("{\"error\":\"Service temporarily unavailable\"}");
@@ -71,7 +71,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         if (!sessionActive) {
-            // Session đã bị revoke -> không set context -> Security tự 401
+            // Revoked sessions leave the context empty so protected endpoints return 401.
             filterChain.doFilter(request, response);
             return;
         }

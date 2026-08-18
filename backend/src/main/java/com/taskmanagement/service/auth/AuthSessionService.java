@@ -75,7 +75,11 @@ public class AuthSessionService {
     }
 
     public boolean exists(String sessionId) {
-        return redisTemplate.hasKey(buildKey(sessionId)); // tuỳ theo key pattern bạn đang dùng cho session
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(buildKey(sessionId)));
+        } catch (DataAccessException ex) {
+            throw unavailable(ex);
+        }
     }
 
     private AuthenticationStoreUnavailableException unavailable(DataAccessException cause) {

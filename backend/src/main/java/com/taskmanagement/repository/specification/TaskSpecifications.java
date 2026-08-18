@@ -15,6 +15,8 @@ import com.taskmanagement.model.Task;
 import com.taskmanagement.model.TaskAssignment;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
@@ -45,38 +47,71 @@ public final class TaskSpecifications {
                     criteriaBuilder.equal(root.get("user").get("id"), userId)
             );
 
-            Subquery<Long> assignmentQuery = query.subquery(Long.class);
-            Root<TaskAssignment> assignment = assignmentQuery.from(TaskAssignment.class);
-            assignmentQuery.select(assignment.get("id")).where(
-                    criteriaBuilder.equal(assignment.get("task").get("id"), root.get("id")),
-                    criteriaBuilder.equal(assignment.get("assignee").get("user").get("id"), userId),
-                    criteriaBuilder.equal(assignment.get("status"), AssignmentStatus.ACTIVE)
-            );
-
-            Subquery<Long> membershipQuery = query.subquery(Long.class);
-            Root<ProjectMember> membership = membershipQuery.from(ProjectMember.class);
-            membershipQuery.select(membership.get("id")).where(
-                    criteriaBuilder.equal(membership.get("project").get("id"), root.get("project").get("id")),
-                    criteriaBuilder.equal(membership.get("user").get("id"), userId)
-            );
-
             TaskWorkspaceView selectedWorkspace = workspace == null ? TaskWorkspaceView.MY_WORK : workspace;
             if (selectedWorkspace == TaskWorkspaceView.REVIEW_QUEUE) {
-                membershipQuery.where(
-                        criteriaBuilder.equal(membership.get("project").get("id"), root.get("project").get("id")),
-                        criteriaBuilder.equal(membership.get("user").get("id"), userId),
-                        membership.get("role").in(ProjectRole.OWNER, ProjectRole.MANAGER)
-                );
-                predicates.add(criteriaBuilder.exists(membershipQuery));
+                predicates.add(hasReviewAccess(root, query, criteriaBuilder, userId));
                 predicates.add(criteriaBuilder.equal(root.get("status"), com.taskmanagement.model.TaskStatus.IN_REVIEW));
             } else if (selectedWorkspace == TaskWorkspaceView.ALL_ACCESSIBLE) {
-                predicates.add(criteriaBuilder.or(personalTask, criteriaBuilder.exists(membershipQuery)));
+                predicates.add(criteriaBuilder.or(
+                        personalTask,
+                        hasProjectMembership(root, query, criteriaBuilder, userId)
+                ));
             } else {
-                predicates.add(criteriaBuilder.or(personalTask, criteriaBuilder.exists(assignmentQuery)));
+                predicates.add(criteriaBuilder.or(
+                        personalTask,
+                        hasActiveAssignment(root, query, criteriaBuilder, userId)
+                ));
             }
 
             return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    private static Predicate hasActiveAssignment(
+            Root<Task> task,
+            CriteriaQuery<?> query,
+            CriteriaBuilder criteriaBuilder,
+            Long userId
+    ) {
+        Subquery<Long> assignmentQuery = query.subquery(Long.class);
+        Root<TaskAssignment> assignment = assignmentQuery.from(TaskAssignment.class);
+        assignmentQuery.select(assignment.get("id")).where(
+                criteriaBuilder.equal(assignment.get("task").get("id"), task.get("id")),
+                criteriaBuilder.equal(assignment.get("assignee").get("user").get("id"), userId),
+                criteriaBuilder.equal(assignment.get("status"), AssignmentStatus.ACTIVE)
+        );
+        return criteriaBuilder.exists(assignmentQuery);
+    }
+
+    private static Predicate hasProjectMembership(
+            Root<Task> task,
+            CriteriaQuery<?> query,
+            CriteriaBuilder criteriaBuilder,
+            Long userId
+    ) {
+        Subquery<Long> membershipQuery = query.subquery(Long.class);
+        Root<ProjectMember> membership = membershipQuery.from(ProjectMember.class);
+        membershipQuery.select(membership.get("id")).where(
+                criteriaBuilder.equal(membership.get("project").get("id"), task.get("project").get("id")),
+                criteriaBuilder.equal(membership.get("user").get("id"), userId)
+        );
+        return criteriaBuilder.exists(membershipQuery);
+    }
+
+    private static Predicate hasReviewAccess(
+            Root<Task> task,
+            CriteriaQuery<?> query,
+            CriteriaBuilder criteriaBuilder,
+            Long userId
+    ) {
+        Subquery<Long> membershipQuery = query.subquery(Long.class);
+        Root<ProjectMember> membership = membershipQuery.from(ProjectMember.class);
+        membershipQuery.select(membership.get("id")).where(
+                criteriaBuilder.equal(membership.get("project").get("id"), task.get("project").get("id")),
+                criteriaBuilder.equal(membership.get("user").get("id"), userId),
+                membership.get("role").in(ProjectRole.OWNER, ProjectRole.MANAGER)
+        );
+        return criteriaBuilder.exists(membershipQuery);
     }
 
     public static Specification<Task> all(TaskFilter filter) {
@@ -105,63 +140,53 @@ public final class TaskSpecifications {
             return predicates;
         }
 
-            if (StringUtils.hasText(filter.search())) {
-                String keyword = "%" + escapeLike(filter.search().trim().toLowerCase()) + "%";
+        if (StringUtils.hasText(filter.search())) {
+            String keyword = "%" + escapeLike(filter.search().trim().toLowerCase()) + "%";
 
-                predicates.add(
-                        criteriaBuilder.or(
-                                criteriaBuilder.like(
-                                        criteriaBuilder.lower(root.get("title")),
-                                        keyword,
-                                        '\\'
-                                ),
-                                criteriaBuilder.like(
-                                        criteriaBuilder.lower(root.get("description")),
-                                        keyword,
-                                        '\\'
-                                )
-                        )
-                );
-            }
+            predicates.add(
+                    criteriaBuilder.or(
+                            criteriaBuilder.like(
+                                    criteriaBuilder.lower(root.get("title")),
+                                    keyword,
+                                    '\\'
+                            ),
+                            criteriaBuilder.like(
+                                    criteriaBuilder.lower(root.get("description")),
+                                    keyword,
+                                    '\\'
+                            )
+                    )
+            );
+        }
 
-            if (filter.status() != null) {
-                predicates.add(
-                        criteriaBuilder.equal(root.get("status"), filter.status())
-                );
-            }
+        if (filter.status() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("status"), filter.status()));
+        }
 
-            if (filter.priority() != null) {
-                predicates.add(
-                        criteriaBuilder.equal(root.get("priority"), filter.priority())
-                );
-            }
+        if (filter.priority() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("priority"), filter.priority()));
+        }
 
-            if (filter.projectId() != null) {
-                predicates.add(
-                        criteriaBuilder.equal(
-                                root.get("project").get("id"),
-                                filter.projectId()
-                        )
-                );
-            }
+        if (filter.projectId() != null) {
+            predicates.add(criteriaBuilder.equal(
+                    root.get("project").get("id"),
+                    filter.projectId()
+            ));
+        }
 
-            if (filter.dueFrom() != null) {
-                predicates.add(
-                        criteriaBuilder.greaterThanOrEqualTo(
-                                root.get("dueDate"),
-                                filter.dueFrom()
-                        )
-                );
-            }
+        if (filter.dueFrom() != null) {
+            predicates.add(criteriaBuilder.greaterThanOrEqualTo(
+                    root.get("dueDate"),
+                    filter.dueFrom()
+            ));
+        }
 
-            if (filter.dueTo() != null) {
-                predicates.add(
-                        criteriaBuilder.lessThanOrEqualTo(
-                                root.get("dueDate"),
-                                filter.dueTo()
-                        )
-                );
-            }
+        if (filter.dueTo() != null) {
+            predicates.add(criteriaBuilder.lessThanOrEqualTo(
+                    root.get("dueDate"),
+                    filter.dueTo()
+            ));
+        }
 
         return predicates;
     }

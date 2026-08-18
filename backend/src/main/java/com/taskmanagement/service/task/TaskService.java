@@ -1,6 +1,7 @@
 package com.taskmanagement.service.task;
 
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -117,6 +118,17 @@ public class TaskService {
     private Project ensureProjectAvailable(Long userId, Long projectId) {
         return projectRepository.findAccessibleProject(projectId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
+    }
+
+    private Project ensureProjectManageable(Long userId, Long projectId) {
+        Project project = ensureProjectAvailable(userId, projectId);
+        ProjectMember membership = memberRepository.findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
+        if (membership.getRole() != ProjectRole.OWNER
+                && membership.getRole() != ProjectRole.MANAGER) {
+            throw new ForbiddenException("Project task management requires OWNER or MANAGER role");
+        }
+        return project;
     }
 
     @Transactional(readOnly=true)
@@ -290,16 +302,7 @@ public class TaskService {
         task.setUser(user);
         task.setStatus(TaskStatus.TODO);
         if (request.projectId() != null) {
-            Project project = ensureProjectAvailable(currentUser.getId(), request.projectId());
-            ProjectMember membership = memberRepository.findByProjectIdAndUserId(
-                            request.projectId(), currentUser.getId()
-                    )
-                    .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
-            if (membership.getRole() != ProjectRole.OWNER
-                    && membership.getRole() != ProjectRole.MANAGER) {
-                throw new ForbiddenException("Project task creation requires OWNER or MANAGER role");
-            }
-            task.setProject(project);
+            task.setProject(ensureProjectManageable(currentUser.getId(), request.projectId()));
         }
         taskRepository.save(task);
 
@@ -309,9 +312,15 @@ public class TaskService {
 
     public Response<TaskDetailResponse> updateTask(Long id, UpdateTaskRequest request) {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
-        //Không bao giờ dùng Cached để update 
-        
         Task task = ensureTaskMutable(currentUser.getId(), id);
+        Project previousProject = task.getProject();
+        Project requestedProject = previousProject;
+        if (request.projectId() != null) {
+            requireProjectRelationMutable(task.getId());
+            requestedProject = request.projectId() == 0
+                    ? null
+                    : ensureProjectManageable(currentUser.getId(), request.projectId());
+        }
 
         if (request.title() != null) { 
             if (request.title().isBlank()) {
@@ -341,25 +350,16 @@ public class TaskService {
             task.setDueDate(request.dueDate());
         }
 
-        if (request.projectId() != null) {
-            requireProjectRelationMutable(task.getId());
-            if (request.projectId() == 0) {
-                task.setProject(null);
-            } else {
-                task.setProject(ensureProjectAvailable(currentUser.getId(), request.projectId()));
-            }
-        }
+        task.setProject(requestedProject);
 
         taskRepository.save(task);
-        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), id));
+        evictTaskForAudiences(id, currentUser.getId(), task.getUser(), previousProject, task.getProject());
         
         List<Expense> expenses = expenseRepository.findByTaskIdAndUserId(task.getId(), currentUser.getId());
         List<ExpenseResponse> expenseResponses = expenses.stream().map(expenseMapper::toExpenseResponse).toList();
         Double total = expenses.stream().mapToDouble(Expense::getAmount).sum();
 
         TaskDetailResponse response = toTaskDetailResponse(task, expenseResponses, total);
-
-        //Không cần put(response) vì lần sau sẽ tự động nạp lại
 
         return Response.success(response, "Task updated successfully!");
     }
@@ -377,9 +377,14 @@ public class TaskService {
 
         taskRepository.delete(task);
 
-        // Evict SAU KHI DB đã thay đổi thành công
-        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), id));
-        expenseIds.forEach(expenseId -> eventPublisher.publishEvent(new ExpenseCacheEvictEvent(currentUser.getId(), expenseId)));
+        evictTaskForAudiences(id, currentUser.getId(), task.getUser(), task.getProject());
+        for (int index = 0; index < expenses.size(); index++) {
+            Expense expense = expenses.get(index);
+            Long expenseOwnerId = expense.getUser() == null
+                    ? currentUser.getId()
+                    : expense.getUser().getId();
+            eventPublisher.publishEvent(new ExpenseCacheEvictEvent(expenseOwnerId, expenseIds.get(index)));
+        }
 
         return Response.success(null, "Task deleted successfully!");
     }
@@ -389,11 +394,12 @@ public class TaskService {
 
         Task task = ensureTaskMutable(currentUser.getId(), taskId);
         requireProjectRelationMutable(taskId);
+        Project previousProject = task.getProject();
 
         task.setProject(null);
         taskRepository.save(task);
 
-        eventPublisher.publishEvent(new TaskCacheEvictEvent(currentUser.getId(), taskId));
+        evictTaskForAudiences(taskId, currentUser.getId(), task.getUser(), previousProject);
 
         TaskResponse response = taskMapper.toTaskResponse(task, 0.0);
         return Response.success(response, "Task unlinked from project successfully!");
@@ -427,9 +433,7 @@ public class TaskService {
     }
 
     private void requireProjectRelationMutable(Long taskId) {
-        // TODO BUSINESS RULE: define an explicit project-transfer workflow if it is needed.
-        // Current safe default prevents assignment/review history from pointing at members
-        // of a different project after a generic projectId PATCH or unlink operation.
+        // Moving a task with workflow history would leave references to members of the old project.
         if (assignmentRepository.existsByTaskId(taskId)
                 || criterionRepository.existsByTaskId(taskId)
                 || reviewRepository.existsByTaskId(taskId)) {
@@ -437,5 +441,28 @@ public class TaskService {
                     "Task with assignment, criteria or review history cannot change project"
             );
         }
+    }
+
+    private void evictTaskForAudiences(
+            Long taskId,
+            Long actorUserId,
+            User taskCreator,
+            Project... projects
+    ) {
+        Set<Long> userIds = new HashSet<>();
+        userIds.add(actorUserId);
+        if (taskCreator != null && taskCreator.getId() != null) {
+            userIds.add(taskCreator.getId());
+        }
+        for (Project project : projects) {
+            if (project != null) {
+                memberRepository.findByProjectId(project.getId()).stream()
+                        .map(member -> member.getUser().getId())
+                        .forEach(userIds::add);
+            }
+        }
+        userIds.forEach(userId ->
+                eventPublisher.publishEvent(new TaskCacheEvictEvent(userId, taskId))
+        );
     }
 }

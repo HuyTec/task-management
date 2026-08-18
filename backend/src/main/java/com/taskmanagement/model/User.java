@@ -54,7 +54,6 @@ public class User {
     
     private boolean isDeactivated = false;
 
-    //thêm createdAt và updatedAt:
     @PrePersist
     protected void onCreate(){
         this.createdAt = LocalDateTime.now();

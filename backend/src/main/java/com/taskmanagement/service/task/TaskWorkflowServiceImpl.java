@@ -87,8 +87,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
             throw new ForbiddenException("Only the member who claimed this task can release the claim");
         }
 
-        // TODO BUSINESS RULE: decide whether a claim may be released after work starts.
-        // Safe default: require manager reassignment once the task has left TODO.
+        // Once work starts, reassignment belongs to project management rather than the claimant.
         requireTaskOpenForAssignment(task);
         cancelAssignment(assignment);
         evictTaskForProjectMembers(task);
@@ -110,8 +109,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
             throw new ForbiddenException("VIEWER cannot be assigned project tasks");
         }
 
-        // TODO BUSINESS RULE: decide whether OWNER/MANAGER may also be assignees.
-        // Current contract permits every active project role except VIEWER.
+        // Small teams may assign delivery work to OWNER or MANAGER; only VIEWER is ineligible.
         assignmentRepository.findByTaskIdAndStatus(taskId, AssignmentStatus.ACTIVE)
                 .ifPresent(this::cancelAssignment);
         assignmentRepository.flush();
@@ -191,8 +189,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
             throw new BadRequestException("At least one criterion field must be provided");
         }
         if (request.content() != null || request.position() != null) {
-            // TODO BUSINESS RULE: decide whether criteria scope may change after work starts.
-            // Safe default freezes content/order once the task leaves TODO.
+            // Scope is frozen after work starts; review may only change satisfaction state.
             requireCriteriaStructureMutable(task);
         }
         if (request.satisfied() != null && task.getStatus() != TaskStatus.IN_REVIEW) {
@@ -257,6 +254,11 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
         Task task = requireLockedProjectTask(taskId);
         ProjectMember reviewer = requireCurrentManager(task);
         requireInReview(task);
+        requireIndependentReviewer(taskId, reviewer);
+
+        List<TaskAcceptanceCriterion> criteria = criterionRepository
+                .findByTaskIdOrderByPositionAsc(taskId);
+        criteria.forEach(criterion -> criterion.setSatisfied(false));
 
         TaskReview review = newReview(
                 task,
@@ -276,6 +278,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
         Task task = requireLockedProjectTask(taskId);
         ProjectMember reviewer = requireCurrentManager(task);
         requireInReview(task);
+        requireIndependentReviewer(taskId, reviewer);
         List<TaskAcceptanceCriterion> criteria = criterionRepository.findByTaskIdOrderByPositionAsc(taskId);
         if (criteria.isEmpty()) {
             throw new BadRequestException("Task requires at least one acceptance criterion before approval");
@@ -284,7 +287,6 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
             throw new BadRequestException("All acceptance criteria must be satisfied before approval");
         }
 
-        // TODO BUSINESS RULE: decide whether a manager may review a task assigned to themselves.
         TaskReview review = newReview(task, reviewer, ReviewDecision.APPROVED, null);
         TaskReview saved = reviewRepository.save(review);
         task.setStatus(TaskStatus.DONE);
@@ -349,6 +351,13 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
         TaskAssignment assignment = requireActiveAssignment(taskId);
         if (!assignment.getAssignee().getId().equals(actor.getId())) {
             throw new ForbiddenException("Only the active assignee can submit this task for review");
+        }
+    }
+
+    private void requireIndependentReviewer(Long taskId, ProjectMember reviewer) {
+        TaskAssignment assignment = requireActiveAssignment(taskId);
+        if (assignment.getAssignee().getId().equals(reviewer.getId())) {
+            throw new ForbiddenException("Assignee cannot review their own task");
         }
     }
 

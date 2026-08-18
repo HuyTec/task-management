@@ -168,7 +168,7 @@ public class JwtService {
         return extractExpiration(token).before(new Date());
     }
 
-    private Key getSignKey() { //tạo khóa ký
+    private Key getSignKey() {
         String normalizedSecret = secretKey == null ? "" : secretKey.trim();
 
         try {

@@ -72,7 +72,12 @@ The main backend endpoints are:
 - DELETE /api/tasks/{id}
 
 ### Expenses
-- Expense API is currently being developed and expanded.
+- GET /api/expenses/me
+- GET /api/expenses/{id}
+- POST /api/expenses
+- PATCH /api/expenses/{id}
+- DELETE /api/expenses/{id}
+- PATCH /api/expenses/{id}/task
 
 ## Getting Started
 ### Prerequisites

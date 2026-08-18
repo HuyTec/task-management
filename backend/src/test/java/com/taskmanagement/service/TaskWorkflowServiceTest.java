@@ -20,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.taskmanagement.dto.task.AssignTaskRequest;
 import com.taskmanagement.dto.task.RequestChangesRequest;
+import com.taskmanagement.dto.task.UpdateAcceptanceCriterionRequest;
 import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.exception.DuplicatedResourceException;
 import com.taskmanagement.exception.ForbiddenException;
@@ -115,6 +116,25 @@ class TaskWorkflowServiceTest {
     }
 
     @Test
+    void managerCanAssignTaskToProjectOwner() {
+        Task task = task(42L, TaskStatus.TODO);
+        ProjectMember manager = actor(task, 7L, ProjectRole.MANAGER);
+        ProjectMember owner = actor(task, 9L, ProjectRole.OWNER);
+        stubLockedTaskAndActor(task, manager);
+        when(memberRepository.findByProjectIdAndUserUsername(12L, "owner"))
+                .thenReturn(Optional.of(owner));
+        when(assignmentRepository.saveAndFlush(any(TaskAssignment.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.assign(42L, new AssignTaskRequest("owner"));
+
+        ArgumentCaptor<TaskAssignment> assignmentCaptor = ArgumentCaptor.forClass(TaskAssignment.class);
+        verify(assignmentRepository).saveAndFlush(assignmentCaptor.capture());
+        assertThat(assignmentCaptor.getValue().getAssignee()).isSameAs(owner);
+        assertThat(assignmentCaptor.getValue().getAssignedBy()).isSameAs(manager);
+    }
+
+    @Test
     void activeAssigneeCanSubmitTaskForReview() {
         Task task = task(42L, TaskStatus.IN_PROGRESS);
         ProjectMember member = actor(task, 7L, ProjectRole.MEMBER);
@@ -150,7 +170,10 @@ class TaskWorkflowServiceTest {
     void requestChangesStoresReasonAndMovesTaskToChangesRequested() {
         Task task = task(42L, TaskStatus.IN_REVIEW);
         ProjectMember manager = actor(task, 7L, ProjectRole.MANAGER);
+        ProjectMember assignee = actor(task, 9L, ProjectRole.MEMBER);
         stubLockedTaskAndActor(task, manager);
+        when(assignmentRepository.findByTaskIdAndStatus(42L, AssignmentStatus.ACTIVE))
+                .thenReturn(Optional.of(assignment(task, assignee)));
         when(reviewRepository.save(any(TaskReview.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -167,7 +190,10 @@ class TaskWorkflowServiceTest {
     void approveRejectsUnsatisfiedCriteria() {
         Task task = task(42L, TaskStatus.IN_REVIEW);
         ProjectMember owner = actor(task, 7L, ProjectRole.OWNER);
+        ProjectMember assignee = actor(task, 9L, ProjectRole.MEMBER);
         stubLockedTaskAndActor(task, owner);
+        when(assignmentRepository.findByTaskIdAndStatus(42L, AssignmentStatus.ACTIVE))
+                .thenReturn(Optional.of(assignment(task, assignee)));
         when(criterionRepository.findByTaskIdOrderByPositionAsc(42L))
                 .thenReturn(List.of(criterion(task, false)));
         when(criterionRepository.existsByTaskIdAndSatisfiedFalse(42L)).thenReturn(true);
@@ -178,6 +204,94 @@ class TaskWorkflowServiceTest {
 
         verify(reviewRepository, never()).save(any(TaskReview.class));
         assertThat(task.getStatus()).isEqualTo(TaskStatus.IN_REVIEW);
+    }
+
+    @Test
+    void requestChangesResetsAllAcceptanceCriteria() {
+        Task task = task(42L, TaskStatus.IN_REVIEW);
+        ProjectMember manager = actor(task, 7L, ProjectRole.MANAGER);
+        ProjectMember assignee = actor(task, 9L, ProjectRole.MEMBER);
+        List<TaskAcceptanceCriterion> criteria = List.of(
+                criterion(task, true),
+                criterion(task, true)
+        );
+        stubLockedTaskAndActor(task, manager);
+        when(assignmentRepository.findByTaskIdAndStatus(42L, AssignmentStatus.ACTIVE))
+                .thenReturn(Optional.of(assignment(task, assignee)));
+        when(criterionRepository.findByTaskIdOrderByPositionAsc(42L)).thenReturn(criteria);
+        when(reviewRepository.save(any(TaskReview.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.requestChanges(42L, new RequestChangesRequest("Rework authorization"));
+
+        assertThat(criteria).allMatch(criterion -> !criterion.isSatisfied());
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.CHANGES_REQUESTED);
+    }
+
+    @Test
+    void assigneeCannotApproveTheirOwnTask() {
+        Task task = task(42L, TaskStatus.IN_REVIEW);
+        ProjectMember manager = actor(task, 7L, ProjectRole.MANAGER);
+        stubLockedTaskAndActor(task, manager);
+        when(assignmentRepository.findByTaskIdAndStatus(42L, AssignmentStatus.ACTIVE))
+                .thenReturn(Optional.of(assignment(task, manager)));
+
+        assertThatThrownBy(() -> service.approve(42L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Assignee cannot review their own task");
+
+        verify(reviewRepository, never()).save(any(TaskReview.class));
+    }
+
+    @Test
+    void assigneeCannotRequestChangesOnTheirOwnTask() {
+        Task task = task(42L, TaskStatus.IN_REVIEW);
+        ProjectMember owner = actor(task, 7L, ProjectRole.OWNER);
+        stubLockedTaskAndActor(task, owner);
+        when(assignmentRepository.findByTaskIdAndStatus(42L, AssignmentStatus.ACTIVE))
+                .thenReturn(Optional.of(assignment(task, owner)));
+
+        assertThatThrownBy(() -> service.requestChanges(
+                42L,
+                new RequestChangesRequest("Self-review is not independent")
+        ))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Assignee cannot review their own task");
+
+        verify(reviewRepository, never()).save(any(TaskReview.class));
+    }
+
+    @Test
+    void claimCannotBeReleasedAfterWorkStarts() {
+        Task task = task(42L, TaskStatus.IN_PROGRESS);
+        ProjectMember member = actor(task, 7L, ProjectRole.MEMBER);
+        stubLockedTaskAndActor(task, member);
+        when(assignmentRepository.findByTaskIdAndStatus(42L, AssignmentStatus.ACTIVE))
+                .thenReturn(Optional.of(assignment(task, member)));
+
+        assertThatThrownBy(() -> service.releaseClaim(42L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Only TODO task can be claimed or released");
+    }
+
+    @Test
+    void criterionContentCannotChangeAfterWorkStarts() {
+        Task task = task(42L, TaskStatus.IN_PROGRESS);
+        ProjectMember manager = actor(task, 7L, ProjectRole.MANAGER);
+        TaskAcceptanceCriterion criterion = criterion(task, false);
+        criterion.setId(5L);
+        stubLockedTaskAndActor(task, manager);
+        when(criterionRepository.findByIdAndTaskId(5L, 42L)).thenReturn(Optional.of(criterion));
+
+        assertThatThrownBy(() -> service.updateCriterion(
+                42L,
+                5L,
+                new UpdateAcceptanceCriterionRequest("Changed scope", null, null)
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Criteria content and order can only change while task is TODO");
+
+        verify(criterionRepository, never()).save(any(TaskAcceptanceCriterion.class));
     }
 
     private void stubLockedTaskAndActor(Task task, ProjectMember actor) {
@@ -228,4 +342,5 @@ class TaskWorkflowServiceTest {
         criterion.setSatisfied(satisfied);
         return criterion;
     }
+
 }

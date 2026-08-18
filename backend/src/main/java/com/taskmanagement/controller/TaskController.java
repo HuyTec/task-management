@@ -26,7 +26,7 @@ import org.springframework.data.domain.Sort;
 public class TaskController {
     private final TaskService taskService;
 
-    // ADMIN ONLY — xem toàn bộ task trong hệ thống
+    // Administrative system-wide task view.
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Response<PageResponse<TaskResponse>>> getAllTasks(
@@ -42,7 +42,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getAllTasks(filter, pageable));
     }
 
-    // SELF — user xem task của chính mình (Dashboard)
+    // Current user's personal, assigned, accessible or review workspace.
     @GetMapping("/me")
     public ResponseEntity<Response<PageResponse<TaskResponse>>> getMyTasks(
             @Valid @ModelAttribute TaskFilter filter,
@@ -58,7 +58,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getMyTask(filter, pageable, workspace));
     }
 
-    // SELF/ADMIN — ownership check nằm trong Service (ensureTaskAvailable)
+    // Read authorization is enforced by TaskService before cache access.
     @GetMapping("/{id}")
     public ResponseEntity<Response<TaskDetailResponse>> getTaskById(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(taskService.getTaskById(id));
