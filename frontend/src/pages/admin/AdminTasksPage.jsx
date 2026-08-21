@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { getAllTasks } from '../../api/taskApi'
-import AdminHeader from '../../components/admin/AdminHeader'
+import AdminShell from '../../components/admin/AdminShell'
 import Pagination from '../../components/layout/Pagination'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 
@@ -48,9 +48,7 @@ function AdminTasksPage() {
   }, [pageNumber, reloadKey])
 
   return (
-    <main className="dashboard-shell">
-      <AdminHeader />
-      <section className="dashboard-content">
+    <AdminShell wide>
         <p className="eyebrow">Task management</p>
         <h1>System tasks.</h1>
         <p className="dashboard-lead">The backend currently permits administrators to list all tasks. Editing and deletion remain ownership-restricted.</p>
@@ -88,8 +86,7 @@ function AdminTasksPage() {
           </div>
         )}
         {!isLoading && <Pagination page={taskPage} label="tasks" onPageChange={setPageNumber} />}
-      </section>
-    </main>
+    </AdminShell>
   )
 }
 

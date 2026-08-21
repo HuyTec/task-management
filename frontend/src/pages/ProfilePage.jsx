@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 
 import { getMyProfile, updateMyProfile } from '../api/userApi'
 import PasswordField from '../components/auth/PasswordField'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
+import StatePanel from '../components/ui/StatePanel'
 import { formatDateTime, formatEnum } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 
@@ -75,10 +76,8 @@ function ProfilePage() {
   }
 
   return (
-    <main className="dashboard-shell">
-      <AppHeader />
-      <section className="dashboard-content">
-        {isLoading && <><p className="eyebrow">My profile</p><h1>Loading profile...</h1><p className="dashboard-lead">Synchronizing your account details.</p></>}
+    <AppShell>
+        {isLoading && <StatePanel tone="loading" eyebrow="My profile" title="Loading your profile" description="Synchronizing account details and preferences." />}
         {!isLoading && error && !profile && <div className="detail-error"><p className="eyebrow">My profile</p><h1>Profile unavailable.</h1><p className="form-alert form-alert--error" role="alert">{error}</p><button className="text-button" type="button" onClick={() => setReloadKey((key) => key + 1)}>Try again</button></div>}
 
         {!isLoading && profile && (
@@ -126,8 +125,7 @@ function ProfilePage() {
             </div>
           </>
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

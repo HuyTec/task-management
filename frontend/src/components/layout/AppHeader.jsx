@@ -8,11 +8,12 @@ function AppHeader() {
       subtitle="Personal workspace"
       homePath="/dashboard"
       navigation={[
-        { label: 'Home', to: '/dashboard' },
-        { label: 'Tasks', to: '/tasks' },
-        { label: 'Expenses', to: '/expenses' },
-        { label: 'Projects', to: '/projects' },
-        { label: 'Profile', to: '/profile' },
+        { icon: 'home', label: 'Home', to: '/dashboard', end: true },
+        { icon: 'tasks', label: 'Tasks', to: '/tasks' },
+        { icon: 'expenses', label: 'Expenses', to: '/expenses' },
+        { icon: 'projects', label: 'Projects', to: '/projects' },
+        { icon: 'history', label: 'History', to: '/history', end: true },
+        { icon: 'profile', label: 'Profile', to: '/profile' },
       ]}
       signOutPath="/login"
     />

@@ -4,8 +4,9 @@ import { Link } from 'react-router-dom'
 import { createExpense, deleteExpenseById, getMyExpenses, unlinkExpenseFromTask, updateExpenseById } from '../api/expenseApi'
 import { getMyTasks } from '../api/taskApi'
 import ExpenseForm from '../components/expenses/ExpenseForm'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import Pagination from '../components/layout/Pagination'
+import StatePanel from '../components/ui/StatePanel'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 import { decrementPageTotal } from '../utils/pageUtils'
 
@@ -113,9 +114,7 @@ function ExpensesPage() {
   }
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--expenses">
-      <AppHeader />
-      <section className="dashboard-content dashboard-content--wide">
+    <AppShell theme="expenses" wide>
         <div className="page-heading">
           <div><p className="eyebrow">Personal finance</p><h1>Your expense ledger.</h1><p className="dashboard-lead">A private view of costs across daily life and active tasks.</p></div>
           <button className="primary-button primary-button--fit" type="button" onClick={openCreate}>Add expense</button>
@@ -128,9 +127,9 @@ function ExpensesPage() {
         {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
         {success && <p className="form-alert form-alert--success" role="status">{success}</p>}
         {showForm && <ExpenseForm initialExpense={editingExpense} tasks={tasks} isSaving={isSaving} onCancel={() => setShowForm(false)} onSubmit={saveExpense} />}
-        {isLoading ? <p className="dashboard-lead">Loading your ledger...</p> : (
+        {isLoading ? <StatePanel compact tone="loading" title="Loading your expense ledger" description="Preparing private expenses and related task names." /> : (
           <div className="table-scroll entity-table-wrap">
-            <table className="dashboard-table expense-table">
+            <table className="dashboard-table expense-table expense-ledger-table mobile-card-table">
               <thead><tr><th>Description</th><th>Category</th><th>Task</th><th>Date</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
                 {expenses.map((expense) => (
@@ -149,8 +148,7 @@ function ExpensesPage() {
           </div>
         )}
         {!isLoading && <Pagination page={expensePage} label="expenses" onPageChange={setPageNumber} />}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

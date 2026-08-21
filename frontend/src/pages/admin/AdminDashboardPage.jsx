@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { getAllTasks } from '../../api/taskApi'
 import { getAllUsers } from '../../api/userApi'
-import AdminHeader from '../../components/admin/AdminHeader'
+import AdminShell from '../../components/admin/AdminShell'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 
 function AdminDashboardPage() {
@@ -40,9 +40,7 @@ function AdminDashboardPage() {
   }, [reloadKey])
 
   return (
-    <main className="dashboard-shell">
-      <AdminHeader />
-      <section className="dashboard-content">
+    <AdminShell>
         <p className="eyebrow">Administration</p>
         <h1>System overview.</h1>
         <p className="dashboard-lead">A concise view of the management capabilities currently exposed by the backend.</p>
@@ -61,8 +59,7 @@ function AdminDashboardPage() {
             <article className="metric-card"><span>Expenses</span><strong>Private by design</strong><p>Personal expense details are intentionally excluded from administration.</p></article>
           </div>
         )}
-      </section>
-    </main>
+    </AdminShell>
   )
 }
 

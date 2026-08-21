@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import { getExpenseById } from '../api/expenseApi'
 import { getTaskById } from '../api/taskApi'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import { formatDate, formatDateTime, formatEnum, formatMoney } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 
@@ -44,9 +44,7 @@ function ExpenseDetailPage() {
   }, [expenseId, reloadKey])
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--expenses">
-      <AppHeader />
-      <section className="dashboard-content">
+    <AppShell theme="expenses">
         <Link className="back-link" to="/expenses">← Back to expense ledger</Link>
         {isLoading && <p className="dashboard-lead">Loading expense details...</p>}
         {!isLoading && error && (
@@ -69,8 +67,7 @@ function ExpenseDetailPage() {
             </section>
           </>
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

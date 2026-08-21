@@ -1,15 +1,17 @@
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
+import StatePanel from '../components/ui/StatePanel'
 
 function HistoryPage() {
   return (
-    <main className="dashboard-shell">
-      <AppHeader />
-      <section className="dashboard-content">
-        <p className="eyebrow">History</p>
-        <h1>Coming next.</h1>
-        <p className="dashboard-lead">Activity history will appear here after the core profile and task workflows are complete.</p>
-      </section>
-    </main>
+    <AppShell>
+      <p className="eyebrow">History</p>
+      <h1>Workspace activity.</h1>
+      <p className="dashboard-lead">A chronological view will live here when the backend activity feed is available.</p>
+      <StatePanel
+        title="No activity feed yet"
+        description="This is an honest product state, not an empty API result. Task and review history remains available inside each task."
+      />
+    </AppShell>
   )
 }
 

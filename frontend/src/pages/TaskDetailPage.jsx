@@ -5,7 +5,7 @@ import { createExpense } from '../api/expenseApi'
 import { getMyProjectMembership, getProjectMembers } from '../api/projectApi'
 import { getTaskById } from '../api/taskApi'
 import ExpenseForm from '../components/expenses/ExpenseForm'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import TaskWorkflowPanel from '../components/tasks/TaskWorkflowPanel'
 import { formatDate, formatDateTime, formatEnum, formatMoney } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
@@ -82,9 +82,7 @@ function TaskDetailPage() {
   }
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--tasks">
-      <AppHeader />
-      <section className="dashboard-content">
+    <AppShell theme="tasks">
         <Link className="back-link" to="/tasks">← Back to task board</Link>
         {isLoading && <p className="dashboard-lead">Loading task details...</p>}
         {!isLoading && error && (
@@ -122,7 +120,7 @@ function TaskDetailPage() {
               </div>
               {showExpenseForm && <ExpenseForm fixedTask={task} isSaving={isSavingExpense} onCancel={() => setShowExpenseForm(false)} onSubmit={addExpense} />}
               <div className="table-scroll entity-table-wrap">
-                <table className="dashboard-table expense-table">
+                <table className="dashboard-table expense-table task-expense-table mobile-card-table">
                   <thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Amount</th></tr></thead>
                   <tbody>
                     {task.expenses?.map((expense) => (
@@ -135,8 +133,7 @@ function TaskDetailPage() {
             </section>
           </>
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

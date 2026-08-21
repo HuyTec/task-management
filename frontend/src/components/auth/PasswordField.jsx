@@ -8,6 +8,8 @@ function PasswordField({
   autoComplete,
   placeholder = 'Enter your password',
   required = true,
+  description,
+  error,
 }) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
 
@@ -33,8 +35,12 @@ function PasswordField({
         placeholder={placeholder}
         autoComplete={autoComplete}
         minLength="8"
+        aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
+        aria-invalid={Boolean(error)}
         required={required}
       />
+      {description && !error && <small className="field-help" id={`${id}-description`}>{description}</small>}
+      {error && <small className="field-error" id={`${id}-error`}>{error}</small>}
     </div>
   )
 }

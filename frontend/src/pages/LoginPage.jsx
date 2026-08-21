@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { linkGoogleAccount, login, loginWithGoogle } from '../api/authApi'
 import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import PasswordField from '../components/auth/PasswordField'
+import Alert from '../components/ui/Alert'
+import ConfirmationPanel from '../components/ui/ConfirmationPanel'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -123,27 +125,28 @@ function LoginPage() {
             onCredential={handleGoogleCredential}
             onError={setError}
           />
-          {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
+          {error && <Alert tone="error">{error}</Alert>}
           {pendingGoogleCredential && (
-            <form className="google-link-panel" onSubmit={handleGoogleLink}>
-              <div>
-                <strong>Confirm your existing account</strong>
-                <p>Your current data stays in place. Google will become another secure way to sign in.</p>
-              </div>
-              <PasswordField
-                id="link-password"
-                label="Current account password"
-                value={linkPassword}
-                onChange={(event) => setLinkPassword(event.target.value)}
-                autoComplete="current-password"
-              />
-              <div className="google-link-panel__actions">
-                <button className="text-button" type="button" onClick={cancelGoogleLink}>Cancel</button>
-                <button className="primary-button primary-button--fit" type="submit" disabled={isGoogleSubmitting}>
-                  {isGoogleSubmitting ? 'Linking…' : 'Confirm and link'}
-                </button>
-              </div>
-            </form>
+            <ConfirmationPanel
+              title="Confirm your existing account"
+              description="Your data stays in place. We will link Google only after the current password is verified."
+            >
+              <form className="google-link-form" onSubmit={handleGoogleLink}>
+                <PasswordField
+                  id="link-password"
+                  label="Current account password"
+                  value={linkPassword}
+                  onChange={(event) => setLinkPassword(event.target.value)}
+                  autoComplete="current-password"
+                />
+                <div className="google-link-panel__actions">
+                  <button className="text-button" type="button" onClick={cancelGoogleLink}>Cancel</button>
+                  <button className="primary-button primary-button--fit" type="submit" disabled={isGoogleSubmitting}>
+                    {isGoogleSubmitting ? 'Linking…' : 'Confirm and link'}
+                  </button>
+                </div>
+              </form>
+            </ConfirmationPanel>
           )}
           <p className="auth-note">
             New here?{' '}

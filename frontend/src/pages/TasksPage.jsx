@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom'
 
 import { deleteTaskById, getMyTasks, getTaskById, updateTaskById } from '../api/taskApi'
 import { getMyProjects } from '../api/projectApi'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import Pagination from '../components/layout/Pagination'
 import TaskCard from '../components/tasks/TaskCard'
 import TaskForm from '../components/tasks/TaskForm'
+import StatePanel from '../components/ui/StatePanel'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 import { decrementPageTotal } from '../utils/pageUtils'
 
@@ -155,9 +156,7 @@ function TasksPage() {
   }
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--tasks">
-      <AppHeader />
-      <section className="dashboard-content dashboard-content--wide">
+    <AppShell theme="tasks" wide>
         <div className="page-heading">
           <div><p className="eyebrow">Workspaces</p><h1>Your task board.</h1><p className="dashboard-lead">Follow work you own, then switch to the review queue when a project decision is required.</p></div>
           <Link className="primary-button primary-button--fit" to="/tasks/new">New task</Link>
@@ -174,7 +173,7 @@ function TasksPage() {
           <label className="form-field"><span>Priority</span><select value={query.priority} onChange={(event) => updateFilter('priority', event.target.value)}><option value="">All priorities</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select></label>
           <button className="primary-button primary-button--fit" type="submit">Search</button>
         </form>
-        {isLoading ? <p className="dashboard-lead">Loading your board...</p> : (
+        {isLoading ? <StatePanel compact tone="loading" title="Loading your task board" description="Preparing your workspaces and project context." /> : (
           <><p className="page-context">{WORKSPACES.find(([value]) => value === query.workspace)?.[1]} shows {tasks.length} task{tasks.length === 1 ? '' : 's'} on this page, from {taskPage?.totalElements || 0} matching tasks.</p><div className="kanban-board">
             {COLUMNS.map(([status, title, note]) => {
               const columnTasks = tasks.filter((task) => task.status === status)
@@ -195,8 +194,7 @@ function TasksPage() {
             })}
           </div><Pagination page={taskPage} label="tasks" onPageChange={(page) => setQuery((current) => ({ ...current, page }))} /></>
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { getProjectById, getProjectTasks } from '../api/projectApi'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import Pagination from '../components/layout/Pagination'
 import { formatDate, formatEnum } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
@@ -75,9 +75,7 @@ function ProjectDetailPage() {
   )
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--projects">
-      <AppHeader />
-      <section className="dashboard-content">
+    <AppShell theme="projects">
         <Link className="back-link" to="/projects">Back to project portfolio</Link>
 
         {isLoading && <p className="dashboard-lead">Loading project details...</p>}
@@ -132,7 +130,7 @@ function ProjectDetailPage() {
               </div>
               {tasks.length ? (
                 <div className="table-scroll entity-table-wrap">
-                  <table className="dashboard-table">
+                  <table className="dashboard-table project-task-table mobile-card-table">
                     <thead><tr><th>Task</th><th>Assignee</th><th>Status</th><th>Priority</th><th>Due date</th></tr></thead>
                     <tbody>
                       {tasks.map((task) => (
@@ -156,8 +154,7 @@ function ProjectDetailPage() {
 
           </>
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

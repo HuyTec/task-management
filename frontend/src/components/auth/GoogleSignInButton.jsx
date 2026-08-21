@@ -82,7 +82,7 @@ function GoogleSignInButton({ disabled = false, onCredential, onError }) {
         }
 
         renderButton()
-        resizeObserver = new ResizeObserver(renderButton)
+        resizeObserver = new window.ResizeObserver(renderButton)
         resizeObserver.observe(buttonContainer)
       })
       .catch((error) => {
@@ -101,15 +101,13 @@ function GoogleSignInButton({ disabled = false, onCredential, onError }) {
   
   if (!clientId) {
     return (
-      <button
-        className="google-sign-in__fallback"
-        type="button"
-        disabled
-        title="Set VITE_GOOGLE_CLIENT_ID to enable Google sign-in"
-      >
+      <div className="google-sign-in__configuration" role="status">
         <GoogleIcon />
-        <span>Continue with Google</span>
-      </button>
+        <div>
+          <strong>Google sign-in is not configured</strong>
+          <span>Set VITE_GOOGLE_CLIENT_ID for this environment.</span>
+        </div>
+      </div>
     )
   }
 

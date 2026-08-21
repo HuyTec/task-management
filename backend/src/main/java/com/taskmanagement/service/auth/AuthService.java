@@ -193,7 +193,7 @@ public class AuthService {
         user.setUsername(generateGoogleUsername(email, profile.subject()));
         user.setDisplayName(defaultDisplayName(profile, email));
         user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(UUID.randomUUID() + ":" + UUID.randomUUID()));
+       user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
         user.setProfilePictureUrl(profile.profilePictureUrl());
         user.setRole(UserRole.USER);
         userRepository.save(user);

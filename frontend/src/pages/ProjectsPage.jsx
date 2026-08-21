@@ -8,9 +8,10 @@ import {
   getProjectById,
   updateProjectById,
 } from '../api/projectApi'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import Pagination from '../components/layout/Pagination'
 import ProjectForm from '../components/projects/ProjectForm'
+import StatePanel from '../components/ui/StatePanel'
 import { formatDate, formatEnum } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 import { decrementPageTotal } from '../utils/pageUtils'
@@ -132,9 +133,7 @@ function ProjectsPage() {
   }
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--projects">
-      <AppHeader />
-      <section className="dashboard-content dashboard-content--wide">
+    <AppShell theme="projects" wide>
         <div className="page-heading">
           <div>
             <p className="eyebrow">Project planning</p>
@@ -170,10 +169,10 @@ function ProjectsPage() {
         )}
 
         {isLoading ? (
-          <p className="dashboard-lead">Loading your projects...</p>
+          <StatePanel compact tone="loading" title="Loading your projects" description="Preparing your portfolio and membership roles." />
         ) : (
           <div className="table-scroll entity-table-wrap">
-            <table className="dashboard-table">
+            <table className="dashboard-table project-table mobile-card-table">
               <thead>
                 <tr>
                   <th>Project</th>
@@ -234,8 +233,7 @@ function ProjectsPage() {
           </div>
         )}
         {!isLoading && <Pagination page={projectPage} label="projects" onPageChange={setPageNumber} />}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

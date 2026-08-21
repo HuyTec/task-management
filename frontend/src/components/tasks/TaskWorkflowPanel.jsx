@@ -220,7 +220,8 @@ function TaskWorkflowPanel({ task, membership, members, onChanged }) {
 
   useEffect(() => {
     if (window.location.hash === '#review') {
-      window.requestAnimationFrame(() => document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      window.requestAnimationFrame(() => document.getElementById('review')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }))
     }
   }, [])
 

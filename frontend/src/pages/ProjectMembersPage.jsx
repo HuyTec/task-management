@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { addProjectMember, getMyProjectMembership, getProjectMembers, removeProjectMember, updateProjectMemberRole } from '../api/projectApi'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import Pagination from '../components/layout/Pagination'
 import { formatDateTime, formatEnum } from '../utils/entityFormatters'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
@@ -125,9 +125,7 @@ function ProjectMembersPage() {
   }
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--projects">
-      <AppHeader />
-      <section className="dashboard-content">
+    <AppShell theme="projects">
         <Link className="back-link" to={`/projects/${projectId}`}>Back to project tasks</Link>
         <div className="page-heading">
           <div>
@@ -191,8 +189,7 @@ function ProjectMembersPage() {
             <Pagination page={memberPage} label="members" onPageChange={(page) => setQuery((current) => ({ ...current, page }))} />
           </>
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

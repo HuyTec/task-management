@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getMyProjects, getProjectById } from '../api/projectApi'
 import { createProjectTask, createTask } from '../api/taskApi'
-import AppHeader from '../components/layout/AppHeader'
+import AppShell from '../components/layout/AppShell'
 import TaskCreateForm from '../components/tasks/TaskCreateForm'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
 
@@ -69,9 +69,7 @@ function TaskCreatePage() {
   const cancelPath = fixedProject ? `/projects/${fixedProject.id}` : '/tasks'
 
   return (
-    <main className="dashboard-shell tab-theme tab-theme--tasks">
-      <AppHeader />
-      <section className="dashboard-content">
+    <AppShell theme="tasks">
         <Link className="back-link" to={cancelPath}>Cancel task creation</Link>
         <div className="page-heading">
           <div>
@@ -88,8 +86,7 @@ function TaskCreatePage() {
         ) : (
           <TaskCreateForm projects={projects} fixedProject={fixedProject} isSaving={isSaving} onCancel={() => navigate(cancelPath)} onSubmit={saveTask} />
         )}
-      </section>
-    </main>
+    </AppShell>
   )
 }
 

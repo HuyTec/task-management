@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { register } from '../api/authApi'
 import PasswordField from '../components/auth/PasswordField'
+import Alert from '../components/ui/Alert'
 
 function RegisterPage() {
   const navigate = useNavigate()
@@ -74,8 +75,9 @@ function RegisterPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
+              description="Use at least eight characters. A longer passphrase is easier to remember and safer."
             />
-            {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
+            {error && <Alert tone="error">{error}</Alert>}
             <button className="primary-button" type="submit" disabled={isSubmitting}>
               <span>{isSubmitting ? 'Creating account…' : 'Create account'}</span>
             </button>

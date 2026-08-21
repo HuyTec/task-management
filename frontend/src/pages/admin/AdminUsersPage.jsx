@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { activateUser, deactivateUser, deleteUserById, getAllUsers } from '../../api/userApi'
-import AdminHeader from '../../components/admin/AdminHeader'
+import AdminShell from '../../components/admin/AdminShell'
 import Pagination from '../../components/layout/Pagination'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 import { decrementPageTotal } from '../../utils/pageUtils'
@@ -97,9 +97,7 @@ function AdminUsersPage() {
   }
 
   return (
-    <main className="dashboard-shell">
-      <AdminHeader />
-      <section className="dashboard-content">
+    <AdminShell wide>
         <p className="eyebrow">User management</p>
         <h1>System users.</h1>
         <p className="dashboard-lead">Review accounts, change activation state or permanently remove an account.</p>
@@ -178,8 +176,7 @@ function AdminUsersPage() {
         </div>
       )}
       {!isLoading && <Pagination page={userPage} label="users" onPageChange={setPageNumber} />}
-      </section>
-    </main>
+    </AdminShell>
   )
 }
 
