@@ -11,9 +11,11 @@ import com.taskmanagement.dto.Response;
 import com.taskmanagement.dto.task.AcceptanceCriterionResponse;
 import com.taskmanagement.dto.task.AssignTaskRequest;
 import com.taskmanagement.dto.task.CreateAcceptanceCriterionRequest;
+import com.taskmanagement.dto.task.CreateProjectTaskRequest;
 import com.taskmanagement.dto.task.RequestChangesRequest;
 import com.taskmanagement.dto.task.TaskAssignmentResponse;
 import com.taskmanagement.dto.task.TaskReviewResponse;
+import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.task.TaskWorkflowResponse;
 import com.taskmanagement.dto.task.UpdateAcceptanceCriterionRequest;
 import com.taskmanagement.event.TaskCacheEvictEvent;
@@ -21,22 +23,28 @@ import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.exception.DuplicatedResourceException;
 import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.exception.ResourceNotFoundException;
+import com.taskmanagement.exception.ConflictException;
 import com.taskmanagement.mapper.TaskWorkflowMapper;
+import com.taskmanagement.mapper.TaskMapper;
 import com.taskmanagement.model.AssignmentStatus;
 import com.taskmanagement.model.AssignmentType;
 import com.taskmanagement.model.ProjectMember;
 import com.taskmanagement.model.ProjectRole;
+import com.taskmanagement.model.ProjectStatus;
 import com.taskmanagement.model.ReviewDecision;
 import com.taskmanagement.model.Task;
 import com.taskmanagement.model.TaskAcceptanceCriterion;
 import com.taskmanagement.model.TaskAssignment;
 import com.taskmanagement.model.TaskReview;
 import com.taskmanagement.model.TaskStatus;
+import com.taskmanagement.model.Submission;
+import com.taskmanagement.model.SubmissionStatus;
 import com.taskmanagement.repository.MemberRepository;
 import com.taskmanagement.repository.TaskAcceptanceCriterionRepository;
 import com.taskmanagement.repository.TaskAssignmentRepository;
 import com.taskmanagement.repository.TaskRepository;
 import com.taskmanagement.repository.TaskReviewRepository;
+import com.taskmanagement.repository.SubmissionRepository;
 import com.taskmanagement.security.CustomUserDetails;
 import com.taskmanagement.utils.SecurityUtils;
 
@@ -51,10 +59,70 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
     private final TaskAssignmentRepository assignmentRepository;
     private final TaskAcceptanceCriterionRepository criterionRepository;
     private final TaskReviewRepository reviewRepository;
+    private final SubmissionRepository submissionRepository;
     private final MemberRepository memberRepository;
     private final TaskWorkflowMapper workflowMapper;
+    private final TaskMapper taskMapper;
     private final SecurityUtils securityUtils;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Override
+    public Response<TaskResponse> createProjectTask(
+            Long projectId,
+            CreateProjectTaskRequest request
+    ) {
+        CustomUserDetails currentUser = securityUtils.getCurrentUser();
+        ProjectMember manager = memberRepository.findByProjectIdAndUserId(
+                        projectId,
+                        currentUser.getId()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found!"));
+        if (manager.getRole() != ProjectRole.OWNER && manager.getRole() != ProjectRole.MANAGER) {
+            throw new ForbiddenException("Task management requires OWNER or MANAGER role");
+        }
+
+        requireProjectOpenForTaskPlanning(manager);
+        requireDueDateInsideProject(manager, request);
+        ProjectMember assignee = resolveEligibleAssignee(projectId, request.assigneeUsername());
+
+        Task task = new Task();
+        task.setTitle(request.title().trim());
+        task.setDescription(request.description().trim());
+        task.setPriority(request.priority());
+        task.setDueDate(request.dueDate());
+        task.setStatus(TaskStatus.TODO);
+        task.setProject(manager.getProject());
+        task.setUser(manager.getUser());
+        Task savedTask = taskRepository.saveAndFlush(task);
+
+        List<TaskAcceptanceCriterion> criteria = java.util.stream.IntStream
+                .range(0, request.criteria().size())
+                .mapToObj(position -> newCriterion(
+                        savedTask,
+                        request.criteria().get(position),
+                        position
+                ))
+                .toList();
+        criterionRepository.saveAll(criteria);
+
+        TaskAssignment assignment = null;
+        if (assignee != null) {
+            assignment = assignmentRepository.saveAndFlush(newAssignment(
+                    savedTask,
+                    assignee,
+                    manager,
+                    AssignmentType.ASSIGNED
+            ));
+        } else {
+            criterionRepository.flush();
+        }
+
+        evictTaskForProjectMembers(savedTask);
+        return Response.success(
+                taskMapper.toTaskResponse(savedTask, 0.0, assignment, manager.getRole()),
+                "Project task created successfully!"
+        );
+    }
 
     @Override
     public Response<TaskAssignmentResponse> claim(Long taskId) {
@@ -227,22 +295,8 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
 
     @Override
     public Response<TaskWorkflowResponse> submitReview(Long taskId) {
-        Task task = requireLockedProjectTask(taskId);
-        ProjectMember actor = requireCurrentMember(task);
-        requireCurrentAssignee(taskId, actor);
-        if (task.getStatus() != TaskStatus.IN_PROGRESS) {
-            throw new BadRequestException("Only IN_PROGRESS task can be submitted for review");
-        }
-        if (criterionRepository.findByTaskIdOrderByPositionAsc(taskId).isEmpty()) {
-            throw new BadRequestException("Task requires at least one acceptance criterion before review");
-        }
-
-        task.setStatus(TaskStatus.IN_REVIEW);
-        taskRepository.save(task);
-        evictTaskForProjectMembers(task);
-        return Response.success(
-                new TaskWorkflowResponse(task.getId(), task.getStatus()),
-                "Task submitted for review successfully!"
+        throw new ConflictException(
+                "Create a Submission with Evidence and submit it through the submission endpoint"
         );
     }
 
@@ -255,6 +309,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
         ProjectMember reviewer = requireCurrentManager(task);
         requireInReview(task);
         requireIndependentReviewer(taskId, reviewer);
+        Submission submission = requireSubmittedSubmission(taskId);
 
         List<TaskAcceptanceCriterion> criteria = criterionRepository
                 .findByTaskIdOrderByPositionAsc(taskId);
@@ -262,6 +317,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
 
         TaskReview review = newReview(
                 task,
+                submission,
                 reviewer,
                 ReviewDecision.CHANGES_REQUESTED,
                 request.message().trim()
@@ -279,6 +335,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
         ProjectMember reviewer = requireCurrentManager(task);
         requireInReview(task);
         requireIndependentReviewer(taskId, reviewer);
+        Submission submission = requireSubmittedSubmission(taskId);
         List<TaskAcceptanceCriterion> criteria = criterionRepository.findByTaskIdOrderByPositionAsc(taskId);
         if (criteria.isEmpty()) {
             throw new BadRequestException("Task requires at least one acceptance criterion before approval");
@@ -287,7 +344,7 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
             throw new BadRequestException("All acceptance criteria must be satisfied before approval");
         }
 
-        TaskReview review = newReview(task, reviewer, ReviewDecision.APPROVED, null);
+        TaskReview review = newReview(task, submission, reviewer, ReviewDecision.APPROVED, null);
         TaskReview saved = reviewRepository.save(review);
         task.setStatus(TaskStatus.DONE);
         taskRepository.save(task);
@@ -383,6 +440,49 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
                 .build();
     }
 
+    private void requireProjectOpenForTaskPlanning(ProjectMember manager) {
+        ProjectStatus status = manager.getProject().getStatus();
+        if (status != ProjectStatus.PLANNING && status != ProjectStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Project tasks can only be created while project is PLANNING or ACTIVE"
+            );
+        }
+    }
+
+    private void requireDueDateInsideProject(
+            ProjectMember manager,
+            CreateProjectTaskRequest request
+    ) {
+        if (request.dueDate().isBefore(manager.getProject().getStartDate())
+                || request.dueDate().isAfter(manager.getProject().getEndDate())) {
+            throw new BadRequestException("Task due date must stay within the project schedule");
+        }
+    }
+
+    private ProjectMember resolveEligibleAssignee(Long projectId, String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        ProjectMember assignee = memberRepository.findByProjectIdAndUserUsername(
+                        projectId,
+                        username.trim()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Project member not found!"));
+        if (assignee.getRole() == ProjectRole.VIEWER) {
+            throw new ForbiddenException("VIEWER cannot be assigned project tasks");
+        }
+        return assignee;
+    }
+
+    private TaskAcceptanceCriterion newCriterion(Task task, String content, int position) {
+        TaskAcceptanceCriterion criterion = new TaskAcceptanceCriterion();
+        criterion.setTask(task);
+        criterion.setContent(content.trim());
+        criterion.setPosition(position);
+        criterion.setSatisfied(false);
+        return criterion;
+    }
+
     private void cancelAssignment(TaskAssignment assignment) {
         assignment.setStatus(AssignmentStatus.CANCELLED);
         assignment.setEndedAt(LocalDateTime.now());
@@ -391,16 +491,26 @@ public class TaskWorkflowServiceImpl implements TaskWorkflowService {
 
     private TaskReview newReview(
             Task task,
+            Submission submission,
             ProjectMember reviewer,
             ReviewDecision decision,
             String message
     ) {
         TaskReview review = new TaskReview();
         review.setTask(task);
+        review.setSubmission(submission);
         review.setReviewer(reviewer);
         review.setDecision(decision);
         review.setMessage(message);
         return review;
+    }
+
+    private Submission requireSubmittedSubmission(Long taskId) {
+        return submissionRepository.findFirstByTaskIdAndStatusOrderBySequenceNumberDesc(
+                        taskId,
+                        SubmissionStatus.SUBMITTED
+                )
+                .orElseThrow(() -> new ConflictException("Task has no submitted evidence package"));
     }
 
     private void evictTaskForProjectMembers(Task task) {

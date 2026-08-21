@@ -10,11 +10,11 @@ import {
   releaseTaskClaim,
   requestTaskChanges,
   startTask,
-  submitTaskForReview,
   updateTaskCriterion,
 } from '../../api/taskApi'
 import { formatDateTime, formatEnum } from '../../utils/entityFormatters'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
+import SubmissionPanel from './SubmissionPanel'
 
 function AssignmentPanel({ task, membership, members, busyAction, runAction }) {
   const assignment = task.activeAssignment
@@ -174,7 +174,6 @@ function ReviewPanel({ task, membership, busyAction, runAction }) {
   const reviews = task.reviews || []
   const canManage = membership.role === 'OWNER' || membership.role === 'MANAGER'
   const isAssignee = assignment?.assigneeUsername === membership.username
-  const canSubmit = isAssignee && task.status === 'IN_PROGRESS' && criteria.length > 0
   const canReview = canManage && task.status === 'IN_REVIEW'
   const allSatisfied = criteria.length > 0 && criteria.every((criterion) => criterion.satisfied)
   const [reason, setReason] = useState('')
@@ -186,8 +185,7 @@ function ReviewPanel({ task, membership, busyAction, runAction }) {
         <span className={`detail-status detail-status--${task.status.toLowerCase()}`}>{formatEnum(task.status)}</span>
       </div>
 
-      {canSubmit && <button className="primary-button" type="button" disabled={Boolean(busyAction)} onClick={() => runAction('submit-review', () => submitTaskForReview(task.id), 'Task submitted for review.')}>Submit for review</button>}
-      {isAssignee && task.status === 'IN_PROGRESS' && criteria.length === 0 && <p className="form-alert form-alert--warning">A manager must add at least one acceptance criterion before you can submit this task.</p>}
+      {isAssignee && ['IN_PROGRESS', 'CHANGES_REQUESTED'].includes(task.status) && <p className="workflow-note">Create a Submission and attach evidence before sending this task to review.</p>}
 
       {canReview && (
         <div className="review-controls">
@@ -199,7 +197,7 @@ function ReviewPanel({ task, membership, busyAction, runAction }) {
         </div>
       )}
 
-      {!canSubmit && !canReview && task.status !== 'DONE' && <p className="workflow-empty">No review action is available for your role at this stage.</p>}
+      {!canReview && task.status !== 'DONE' && <p className="workflow-empty">No reviewer action is available for your role at this stage.</p>}
 
       <div className="review-history">
         <h3>Review history</h3>
@@ -254,6 +252,7 @@ function TaskWorkflowPanel({ task, membership, members, onChanged }) {
         <div className="workflow-main">
           <AssignmentPanel task={task} membership={membership} members={members} busyAction={busyAction} runAction={runAction} />
           <CriteriaPanel task={task} membership={membership} busyAction={busyAction} runAction={runAction} />
+          <SubmissionPanel task={task} membership={membership} onChanged={onChanged} />
         </div>
         <ReviewPanel task={task} membership={membership} busyAction={busyAction} runAction={runAction} />
       </div>

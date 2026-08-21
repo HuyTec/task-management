@@ -31,6 +31,10 @@ public class TaskReview {
     @JoinColumn(name = "task_id", nullable = false)
     private Task task;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "submission_id")
+    private Submission submission;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "reviewer_id", nullable = false)
     private ProjectMember reviewer;

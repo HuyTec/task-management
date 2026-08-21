@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getMyProjects, getProjectById } from '../api/projectApi'
-import { addTaskCriterion, assignTask, createTask } from '../api/taskApi'
+import { createProjectTask, createTask } from '../api/taskApi'
 import AppHeader from '../components/layout/AppHeader'
 import TaskCreateForm from '../components/tasks/TaskCreateForm'
 import getApiErrorMessage from '../utils/getApiErrorMessage'
@@ -16,7 +16,6 @@ function TaskCreatePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
-  const [partiallyCreatedTaskId, setPartiallyCreatedTaskId] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -48,22 +47,20 @@ function TaskCreatePage() {
   async function saveTask({ taskData, criteria, assigneeUsername }) {
     setIsSaving(true)
     setError('')
-    setPartiallyCreatedTaskId(null)
-    let task = null
     try {
-      task = await createTask(taskData)
-      for (const [position, content] of criteria.entries()) {
-        await addTaskCriterion(task.id, { content, position })
-      }
-      if (assigneeUsername) await assignTask(task.id, assigneeUsername)
+      const task = taskData.projectId
+        ? await createProjectTask(taskData.projectId, {
+            title: taskData.title,
+            description: taskData.description,
+            priority: taskData.priority,
+            dueDate: taskData.dueDate,
+            criteria,
+            assigneeUsername,
+          })
+        : await createTask(taskData)
       navigate(`/tasks/${task.id}`, { replace: true })
     } catch (apiError) {
-      if (task) {
-        setPartiallyCreatedTaskId(task.id)
-        setError(`The task was created, but its workflow setup is incomplete. ${getApiErrorMessage(apiError, 'Open the task to finish setup safely.')}`)
-      } else {
-        setError(getApiErrorMessage(apiError, 'Unable to create the task.'))
-      }
+      setError(getApiErrorMessage(apiError, 'Unable to create the task.'))
     } finally {
       setIsSaving(false)
     }
@@ -84,13 +81,12 @@ function TaskCreatePage() {
           </div>
         </div>
         {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
-        {partiallyCreatedTaskId && <Link className="primary-button primary-button--fit partial-task-link" to={`/tasks/${partiallyCreatedTaskId}`}>Open created task</Link>}
         {isLoading ? (
           <p className="dashboard-lead">Preparing task relations...</p>
         ) : fixedProject && fixedProject.currentUserRole !== 'OWNER' && fixedProject.currentUserRole !== 'MANAGER' ? (
           <p className="form-alert form-alert--warning">Only the project OWNER or MANAGER can create a project task.</p>
         ) : (
-          <TaskCreateForm projects={projects} fixedProject={fixedProject} isSaving={isSaving || Boolean(partiallyCreatedTaskId)} onCancel={() => navigate(cancelPath)} onSubmit={saveTask} />
+          <TaskCreateForm projects={projects} fixedProject={fixedProject} isSaving={isSaving} onCancel={() => navigate(cancelPath)} onSubmit={saveTask} />
         )}
       </section>
     </main>

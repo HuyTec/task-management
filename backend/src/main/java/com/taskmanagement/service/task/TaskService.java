@@ -293,6 +293,11 @@ public class TaskService {
     }
 
     public Response<TaskResponse> createTask(CreateTaskRequest request){
+        if (request.projectId() != null) {
+            throw new BadRequestException(
+                    "Project tasks must be created through the project task endpoint"
+            );
+        }
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
 
 
@@ -301,9 +306,6 @@ public class TaskService {
             .orElseThrow(() -> new ResourceNotFoundException("User not found!"));
         task.setUser(user);
         task.setStatus(TaskStatus.TODO);
-        if (request.projectId() != null) {
-            task.setProject(ensureProjectManageable(currentUser.getId(), request.projectId()));
-        }
         taskRepository.save(task);
 
         TaskResponse response = taskMapper.toTaskResponse(task, 0.0);
@@ -314,12 +316,10 @@ public class TaskService {
         CustomUserDetails currentUser = securityUtils.getCurrentUser();
         Task task = ensureTaskMutable(currentUser.getId(), id);
         Project previousProject = task.getProject();
-        Project requestedProject = previousProject;
         if (request.projectId() != null) {
-            requireProjectRelationMutable(task.getId());
-            requestedProject = request.projectId() == 0
-                    ? null
-                    : ensureProjectManageable(currentUser.getId(), request.projectId());
+            throw new BadRequestException(
+                    "Task project relation cannot change through the generic update endpoint"
+            );
         }
 
         if (request.title() != null) { 
@@ -349,8 +349,6 @@ public class TaskService {
         if (request.dueDate() != null){
             task.setDueDate(request.dueDate());
         }
-
-        task.setProject(requestedProject);
 
         taskRepository.save(task);
         evictTaskForAudiences(id, currentUser.getId(), task.getUser(), previousProject, task.getProject());

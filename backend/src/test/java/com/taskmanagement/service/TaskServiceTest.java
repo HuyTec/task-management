@@ -30,6 +30,7 @@ import com.taskmanagement.dto.task.UpdateTaskRequest;
 import com.taskmanagement.dto.task.CreateTaskRequest;
 import com.taskmanagement.dto.task.TaskDetailResponse;
 import com.taskmanagement.exception.ResourceNotFoundException;
+import com.taskmanagement.exception.BadRequestException;
 import com.taskmanagement.exception.ForbiddenException;
 import com.taskmanagement.event.TaskCacheEvictEvent;
 import com.taskmanagement.mapper.ExpenseMapper;
@@ -136,60 +137,35 @@ class TaskServiceTest {
     }
 
     @Test
-    void createTaskLinksOnlyAProjectOwnedByCurrentUser() {
-        Long userId = 7L;
+    void createTaskRejectsProjectIdBecauseProjectTasksUseAtomicEndpoint() {
         Long projectId = 12L;
         CreateTaskRequest request = new CreateTaskRequest(
                 "Project task", null, null, null, projectId
         );
-        Task task = new Task();
-        User user = new User();
-        Project project = new Project();
-        project.setId(projectId);
-        ProjectMember ownerMembership = membership(project, user, ProjectRole.OWNER);
 
-        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
-        when(currentUser.getId()).thenReturn(userId);
-        when(taskMapper.toTask(request)).thenReturn(task);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(projectRepository.findAccessibleProject(projectId, userId))
-                .thenReturn(Optional.of(project));
-        when(memberRepository.findByProjectIdAndUserId(projectId, userId))
-                .thenReturn(Optional.of(ownerMembership));
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Project tasks must be created through the project task endpoint");
 
-        taskService.createTask(request);
-
-        assertThat(task.getUser()).isSameAs(user);
-        assertThat(task.getProject()).isSameAs(project);
-        assertThat(task.getStatus()).isEqualTo(TaskStatus.TODO);
-        verify(taskRepository).save(task);
+        verify(taskRepository, never()).save(any(Task.class));
     }
 
     @Test
-    void createTaskRejectsProjectOutsideCurrentUserOwnership() {
-        Long userId = 7L;
+    void projectIdIsRejectedBeforeAnyProjectLookup() {
         Long projectId = 12L;
         CreateTaskRequest request = new CreateTaskRequest(
                 "Foreign project task", null, null, null, projectId
         );
-        Task task = new Task();
-
-        when(securityUtils.getCurrentUser()).thenReturn(currentUser);
-        when(currentUser.getId()).thenReturn(userId);
-        when(taskMapper.toTask(request)).thenReturn(task);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(new User()));
-        when(projectRepository.findAccessibleProject(projectId, userId))
-                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.createTask(request))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Project not found!");
+                .isInstanceOf(BadRequestException.class);
 
-        verify(taskRepository, never()).save(task);
+        verify(projectRepository, never()).findAccessibleProject(any(), any());
+        verify(taskRepository, never()).save(any(Task.class));
     }
 
     @Test
-    void updateTaskWithZeroProjectIdUnlinksWithoutChangingOtherFields() {
+    void updateTaskRejectsProjectRelationChanges() {
         Long userId = 7L;
         Long taskId = 42L;
         Project project = new Project();
@@ -208,12 +184,13 @@ class TaskServiceTest {
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(memberRepository.findByProjectIdAndUserId(12L, userId))
                 .thenReturn(Optional.of(membership(project, new User(), ProjectRole.MANAGER)));
-        taskService.updateTask(taskId, request);
 
-        assertThat(task.getProject()).isNull();
-        assertThat(task.getTitle()).isEqualTo("Keep this title");
-        assertThat(task.getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
-        verify(taskRepository).save(task);
+        assertThatThrownBy(() -> taskService.updateTask(taskId, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Task project relation cannot change through the generic update endpoint");
+
+        assertThat(task.getProject()).isSameAs(project);
+        verify(taskRepository, never()).save(task);
         verifyNoInteractions(projectRepository);
     }
 
@@ -243,7 +220,7 @@ class TaskServiceTest {
     }
 
     @Test
-    void updateTaskRejectsTargetProjectWithoutManagementRole() {
+    void updateTaskRejectsTargetProjectBeforeTargetProjectLookup() {
         Long userId = 7L;
         Long taskId = 42L;
         Project sourceProject = new Project();
@@ -262,16 +239,12 @@ class TaskServiceTest {
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(memberRepository.findByProjectIdAndUserId(sourceProject.getId(), userId))
                 .thenReturn(Optional.of(membership(sourceProject, user(userId), ProjectRole.MANAGER)));
-        when(projectRepository.findAccessibleProject(targetProject.getId(), userId))
-                .thenReturn(Optional.of(targetProject));
-        when(memberRepository.findByProjectIdAndUserId(targetProject.getId(), userId))
-                .thenReturn(Optional.of(membership(targetProject, user(userId), ProjectRole.MEMBER)));
-
         assertThatThrownBy(() -> taskService.updateTask(taskId, request))
-                .isInstanceOf(ForbiddenException.class)
-                .hasMessage("Project task management requires OWNER or MANAGER role");
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Task project relation cannot change through the generic update endpoint");
 
         assertThat(task.getProject()).isSameAs(sourceProject);
+        verifyNoInteractions(projectRepository);
         verify(taskRepository, never()).save(task);
     }
 

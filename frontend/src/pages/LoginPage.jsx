@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { login } from '../api/authApi'
+import { linkGoogleAccount, login, loginWithGoogle } from '../api/authApi'
+import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import PasswordField from '../components/auth/PasswordField'
 
 function LoginPage() {
@@ -10,6 +11,15 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState('')
+  const [linkPassword, setLinkPassword] = useState('')
+
+  function completeLogin(data) {
+    if (!data?.accessToken) throw new Error('Access token was not returned by the server')
+    localStorage.setItem('accessToken', data.accessToken)
+    navigate('/dashboard')
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -18,14 +28,56 @@ function LoginPage() {
 
     try {
       const data = await login({ username, password })
-      if (!data?.accessToken) throw new Error('Access token was not returned by the server')
-      localStorage.setItem('accessToken', data.accessToken)
-      navigate('/dashboard')
+      completeLogin(data)
     } catch (apiError) {
       setError(apiError.response?.data?.message || apiError.message || 'Unable to sign in. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  async function handleGoogleCredential(idToken) {
+    if (isSubmitting || isGoogleSubmitting) return
+    setError('')
+    setPendingGoogleCredential('')
+    setLinkPassword('')
+    setIsGoogleSubmitting(true)
+
+    try {
+      const data = await loginWithGoogle(idToken)
+      completeLogin(data)
+    } catch (apiError) {
+      if (apiError.response?.status === 409) {
+        setPendingGoogleCredential(idToken)
+        setError('This email already has an account. Confirm its password to link Google safely.')
+      } else {
+        setError(apiError.response?.data?.message || apiError.message || 'Unable to sign in with Google. Please try again.')
+      }
+    } finally {
+      setIsGoogleSubmitting(false)
+    }
+  }
+
+  async function handleGoogleLink(event) {
+    event.preventDefault()
+    if (!pendingGoogleCredential || isGoogleSubmitting) return
+
+    setError('')
+    setIsGoogleSubmitting(true)
+    try {
+      const data = await linkGoogleAccount(pendingGoogleCredential, linkPassword)
+      completeLogin(data)
+    } catch (apiError) {
+      setError(apiError.response?.data?.message || apiError.message || 'Unable to link this Google account.')
+    } finally {
+      setIsGoogleSubmitting(false)
+    }
+  }
+
+  function cancelGoogleLink() {
+    setPendingGoogleCredential('')
+    setLinkPassword('')
+    setError('')
   }
 
   return (
@@ -61,11 +113,38 @@ function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
             />
-            {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
-            <button className="primary-button" type="submit" disabled={isSubmitting}>
+            <button className="primary-button" type="submit" disabled={isSubmitting || isGoogleSubmitting}>
               <span>{isSubmitting ? 'Signing in…' : 'Sign in'}</span>
             </button>
           </form>
+          <div className="auth-divider" aria-hidden="true"><span>or</span></div>
+          <GoogleSignInButton
+            disabled={isSubmitting || isGoogleSubmitting}
+            onCredential={handleGoogleCredential}
+            onError={setError}
+          />
+          {error && <p className="form-alert form-alert--error" role="alert">{error}</p>}
+          {pendingGoogleCredential && (
+            <form className="google-link-panel" onSubmit={handleGoogleLink}>
+              <div>
+                <strong>Confirm your existing account</strong>
+                <p>Your current data stays in place. Google will become another secure way to sign in.</p>
+              </div>
+              <PasswordField
+                id="link-password"
+                label="Current account password"
+                value={linkPassword}
+                onChange={(event) => setLinkPassword(event.target.value)}
+                autoComplete="current-password"
+              />
+              <div className="google-link-panel__actions">
+                <button className="text-button" type="button" onClick={cancelGoogleLink}>Cancel</button>
+                <button className="primary-button primary-button--fit" type="submit" disabled={isGoogleSubmitting}>
+                  {isGoogleSubmitting ? 'Linking…' : 'Confirm and link'}
+                </button>
+              </div>
+            </form>
+          )}
           <p className="auth-note">
             New here?{' '}
             <button className="text-button" type="button" onClick={() => navigate('/register')}>

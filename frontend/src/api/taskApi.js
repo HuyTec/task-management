@@ -15,6 +15,11 @@ export async function createTask(taskData, signal) {
   return response.data.data
 }
 
+export async function createProjectTask(projectId, taskData, signal) {
+  const response = await apiClient.post(`/projects/${projectId}/tasks`, taskData, { signal })
+  return response.data.data
+}
+
 export async function updateTaskById(taskId, taskData, signal) {
   const response = await apiClient.patch(`/tasks/${taskId}`, taskData, { signal })
   return response.data.data
@@ -82,5 +87,30 @@ export async function requestTaskChanges(taskId, message, signal) {
 
 export async function approveTask(taskId, signal) {
   const response = await apiClient.post(`/tasks/${taskId}/approve`, null, { signal })
+  return response.data.data
+}
+
+export async function createTaskSubmission(taskId, signal) {
+  const response = await apiClient.post(`/tasks/${taskId}/submissions`, null, { signal })
+  return response.data.data
+}
+
+export async function getTaskSubmissions(taskId, signal) {
+  const response = await apiClient.get(`/tasks/${taskId}/submissions`, { signal })
+  return response.data.data
+}
+
+export async function addSubmissionLinkEvidence(submissionId, evidence, signal) {
+  const response = await apiClient.post(`/submissions/${submissionId}/evidences/links`, evidence, { signal })
+  return response.data.data
+}
+
+export async function deleteSubmissionEvidence(submissionId, evidenceId, signal) {
+  const response = await apiClient.delete(`/submissions/${submissionId}/evidences/${evidenceId}`, { signal })
+  return response.data.data
+}
+
+export async function submitTaskSubmission(submissionId, signal) {
+  const response = await apiClient.post(`/submissions/${submissionId}/submit`, null, { signal })
   return response.data.data
 }

@@ -19,10 +19,12 @@ import com.taskmanagement.dto.page.PageResponse;
 import com.taskmanagement.dto.project.CreateProjectRequest;
 import com.taskmanagement.dto.task.TaskFilter;
 import com.taskmanagement.dto.task.TaskResponse;
+import com.taskmanagement.dto.task.CreateProjectTaskRequest;
 import com.taskmanagement.dto.project.ProjectResponse;
 import com.taskmanagement.dto.project.UpdateProjectRequest;
 import com.taskmanagement.service.project.ProjectService;
 import com.taskmanagement.service.task.TaskService;
+import com.taskmanagement.service.task.TaskWorkflowService;
 import org.springframework.data.domain.Sort;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -35,6 +37,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final TaskService taskService;
+    private final TaskWorkflowService taskWorkflowService;
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Response<PageResponse<ProjectResponse>>> getAllProjects(
@@ -84,6 +87,14 @@ public class ProjectController {
             Pageable pageable
     ) {
         return ResponseEntity.ok(taskService.getTasksByProject(id, filter, pageable));
+    }
+
+    @PostMapping("/{id}/tasks")
+    public ResponseEntity<Response<TaskResponse>> createProjectTask(
+            @PathVariable @Positive Long id,
+            @RequestBody @Valid CreateProjectTaskRequest request
+    ) {
+        return ResponseEntity.ok(taskWorkflowService.createProjectTask(id, request));
     }
 
     @PatchMapping("/{id}")

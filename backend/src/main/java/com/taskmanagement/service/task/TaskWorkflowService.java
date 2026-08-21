@@ -4,13 +4,17 @@ import com.taskmanagement.dto.Response;
 import com.taskmanagement.dto.task.AcceptanceCriterionResponse;
 import com.taskmanagement.dto.task.AssignTaskRequest;
 import com.taskmanagement.dto.task.CreateAcceptanceCriterionRequest;
+import com.taskmanagement.dto.task.CreateProjectTaskRequest;
 import com.taskmanagement.dto.task.RequestChangesRequest;
 import com.taskmanagement.dto.task.TaskAssignmentResponse;
 import com.taskmanagement.dto.task.TaskReviewResponse;
+import com.taskmanagement.dto.task.TaskResponse;
 import com.taskmanagement.dto.task.TaskWorkflowResponse;
 import com.taskmanagement.dto.task.UpdateAcceptanceCriterionRequest;
 
 public interface TaskWorkflowService {
+
+    Response<TaskResponse> createProjectTask(Long projectId, CreateProjectTaskRequest request);
 
     Response<TaskAssignmentResponse> claim(Long taskId);
 

@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Response<Void>> handleConflict(ConflictException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Response<Void>> handleBadCredentials(BadCredentialsException ex) {
         return build(HttpStatus.UNAUTHORIZED, "Invalid username or password");
@@ -53,11 +58,23 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidGoogleCredentialException.class)
+    public ResponseEntity<Response<Void>> handleInvalidGoogleCredential(
+            InvalidGoogleCredentialException ex
+    ) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
     @ExceptionHandler(AuthenticationStoreUnavailableException.class)
     public ResponseEntity<Response<Void>> handleAuthenticationStoreUnavailable(
             AuthenticationStoreUnavailableException ex
     ) {
         return build(HttpStatus.SERVICE_UNAVAILABLE, "Authentication service is temporarily unavailable");
+    }
+
+    @ExceptionHandler(StorageUnavailableException.class)
+    public ResponseEntity<Response<Void>> handleStorageUnavailable(StorageUnavailableException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

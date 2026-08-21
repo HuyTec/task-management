@@ -30,9 +30,7 @@ function TaskForm({ initialTask, projects = [], fixedProject, isSaving, onCancel
     if (!initialTask) {
       payload.projectId = fixedProject?.id ?? (form.projectId ? Number(form.projectId) : null)
     } else {
-      const nextProjectId = form.projectId ? Number(form.projectId) : null
       const currentProjectId = initialTask.projectId ?? null
-      if (nextProjectId !== currentProjectId) payload.projectId = nextProjectId ?? 0
       if (currentProjectId === null) payload.status = form.status
     }
     onSubmit(payload)
@@ -49,7 +47,9 @@ function TaskForm({ initialTask, projects = [], fixedProject, isSaving, onCancel
       <label className="form-field"><span>Priority</span><select name="priority" value={form.priority} onChange={updateField}>{PRIORITIES.map((value) => <option key={value}>{value}</option>)}</select></label>
       {initialTask && initialTask.projectId == null && <label className="form-field"><span>Status</span><select name="status" value={form.status} onChange={updateField}>{STATUSES.map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}</select></label>}
       <label className="form-field"><span>Due date</span><input name="dueDate" type="date" value={form.dueDate} onChange={updateField} /></label>
-      {fixedProject ? (
+      {initialTask ? (
+        <div className="form-field"><span>Work context</span><div className="locked-relation"><strong>{initialTask.projectId == null ? 'Independent task' : 'Project-managed task'}</strong><small>Project relations cannot change from the generic task editor.</small></div></div>
+      ) : fixedProject ? (
         <div className="form-field"><span>Project</span><div className="locked-relation"><strong>{fixedProject.name}</strong><small>Automatically assigned to this project</small></div></div>
       ) : (
         <label className="form-field"><span>Project</span><select name="projectId" value={form.projectId} onChange={updateField}><option value="">Independent task</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>

@@ -8,6 +8,7 @@ import com.taskmanagement.model.TaskStatus;
 public record TaskReviewResponse(
         Long id,
         Long taskId,
+        Long submissionId,
         ReviewDecision decision,
         String message,
         String reviewerUsername,

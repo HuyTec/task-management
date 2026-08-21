@@ -139,7 +139,8 @@ function TaskCreateForm({ projects = [], fixedProject, isSaving, onCancel, onSub
                 </div>
               ))}
             </div>
-            <button className="text-button criterion-add-button" type="button" disabled={isSaving} onClick={() => setCriteria((current) => [...current, EMPTY_CRITERION()])}>+ Add another criterion</button>
+            <button className="text-button criterion-add-button" type="button" disabled={isSaving || criteria.length >= 20} onClick={() => setCriteria((current) => [...current, EMPTY_CRITERION()])}>+ Add another criterion</button>
+            {criteria.length >= 20 && <p className="field-help">A Project Task can contain at most 20 acceptance criteria.</p>}
             {!hasCriterion && <p className="form-alert form-alert--warning">At least one acceptance criterion is required before creating a Project Task.</p>}
           </section>
 

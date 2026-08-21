@@ -6,6 +6,8 @@ import org.springframework.http.ResponseEntity;
 import com.taskmanagement.dto.Response;
 import com.taskmanagement.dto.auth.AccessInfo;
 import com.taskmanagement.dto.auth.AuthResponse;
+import com.taskmanagement.dto.auth.GoogleLinkRequest;
+import com.taskmanagement.dto.auth.GoogleLoginRequest;
 import com.taskmanagement.dto.auth.LoginRequest;
 import com.taskmanagement.dto.auth.RegisterRequest;
 import com.taskmanagement.exception.InvalidRefreshTokenException;
@@ -23,6 +25,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 @RequestMapping("/api/auth")
 public class AuthController {
     private static final String REFRESH_COOKIE = "refresh-token";
+    private static final String REFRESH_COOKIE_PATH = "/api/auth";
+    private static final String SAME_SITE_POLICY = "Lax";
 
     private final AuthService authService;
 
@@ -35,22 +39,25 @@ public class AuthController {
         this.authService = authSevice;
     }
 
-    private void setRefreshCookie(String value, HttpServletResponse response){
-        Cookie cookie = new Cookie(REFRESH_COOKIE, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecure);
-        cookie.setPath("/" );
-        cookie.setMaxAge(Math.toIntExact(refreshExpiration / 1000));
-        response.addCookie(cookie);
+    private void setRefreshCookie(String value, HttpServletResponse response) {
+        response.addCookie(buildRefreshCookie(
+                value,
+                Math.toIntExact(refreshExpiration / 1000)
+        ));
     }
 
     private void clearRefreshCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie(REFRESH_COOKIE, "");
+        response.addCookie(buildRefreshCookie("", 0));
+    }
+
+    private Cookie buildRefreshCookie(String value, int maxAge) {
+        Cookie cookie = new Cookie(REFRESH_COOKIE, value);
         cookie.setHttpOnly(true);
         cookie.setSecure(cookieSecure);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        cookie.setPath(REFRESH_COOKIE_PATH);
+        cookie.setMaxAge(maxAge);
+        cookie.setAttribute("SameSite", SAME_SITE_POLICY);
+        return cookie;
     }
 
     private String getRefreshToken(HttpServletRequest request) {
@@ -99,6 +106,32 @@ public class AuthController {
         AccessInfo accessInfo = authService.register(request);
         setRefreshCookie(accessInfo.refreshToken(), response);
         return Response.success(new AuthResponse(accessInfo.accessToken(), accessInfo.user()), "Register successful!");
+    }
+
+    @PostMapping("google")
+    public Response<AuthResponse> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest request,
+            HttpServletResponse response
+    ) {
+        AccessInfo accessInfo = authService.loginWithGoogle(request);
+        setRefreshCookie(accessInfo.refreshToken(), response);
+        return Response.success(
+                new AuthResponse(accessInfo.accessToken(), accessInfo.user()),
+                "Google login successful!"
+        );
+    }
+
+    @PostMapping("google/link")
+    public Response<AuthResponse> confirmGoogleLink(
+            @Valid @RequestBody GoogleLinkRequest request,
+            HttpServletResponse response
+    ) {
+        AccessInfo accessInfo = authService.confirmGoogleLink(request);
+        setRefreshCookie(accessInfo.refreshToken(), response);
+        return Response.success(
+                new AuthResponse(accessInfo.accessToken(), accessInfo.user()),
+                "Google account linked successfully!"
+        );
     }
 
     @PostMapping("logout")

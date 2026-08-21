@@ -22,6 +22,7 @@ public interface TaskWorkflowMapper {
     AcceptanceCriterionResponse toCriterionResponse(TaskAcceptanceCriterion criterion);
 
     @Mapping(target = "taskId", source = "task.id")
+    @Mapping(target = "submissionId", source = "submission.id")
     @Mapping(target = "reviewerUsername", source = "reviewer.user.username")
     @Mapping(target = "taskStatus", source = "task.status")
     TaskReviewResponse toReviewResponse(TaskReview review);

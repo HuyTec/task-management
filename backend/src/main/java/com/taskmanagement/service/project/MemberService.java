@@ -103,13 +103,10 @@ public class MemberService {
             throw new BadRequestException("Project owner cannot be modified or removed");
         }
         ensureActorCanManage(actor, membership);
-        if (taskAssignmentRepository.existsByAssigneeIdAndStatus(
-                membership.getId(), AssignmentStatus.ACTIVE
-        )) {
-            throw new BadRequestException(
-                    "Reassign active tasks before removing this project member"
-            );
-        }
+        requireNoActiveAssignments(
+                membership,
+                "Reassign active tasks before removing this project member"
+        );
 
         projectMemberRepository.delete(membership);
         return Response.success(null, "Project member removed successfully!");
@@ -132,6 +129,12 @@ public class MemberService {
         }
         ensureActorCanManage(actor, membership);
         validateAssignableRole(actor, request.role());
+        if (request.role() == ProjectRole.VIEWER) {
+            requireNoActiveAssignments(
+                    membership,
+                    "Reassign active tasks before changing this project member to VIEWER"
+            );
+        }
 
         membership.setRole(request.role());
         ProjectMember savedMembership = projectMemberRepository.save(membership);
@@ -157,7 +160,15 @@ public class MemberService {
         if (actor.getRole() == ProjectRole.MANAGER && target.getRole() == ProjectRole.MANAGER) {
             log.warn("Denied manager management by peer manager: actorUserId={}, projectId={}, targetUserId={}",
                     actor.getUser().getId(), actor.getProject().getId(), target.getUser().getId());
-            throw new ForbiddenException("Only project owner can manage project admins");
+            throw new ForbiddenException("Only project owner can manage project managers");
+        }
+    }
+
+    private void requireNoActiveAssignments(ProjectMember membership, String message) {
+        if (taskAssignmentRepository.existsByAssigneeIdAndStatus(
+                membership.getId(), AssignmentStatus.ACTIVE
+        )) {
+            throw new BadRequestException(message);
         }
     }
 

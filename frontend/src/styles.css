@@ -156,6 +156,20 @@ button:disabled { cursor: not-allowed; }
 .primary-button:hover:not(:disabled) { background: var(--accent-dark); box-shadow: 0 16px 36px var(--accent-shadow); transform: translateY(-1px); }
 .primary-button:focus-visible, .text-button:focus-visible { outline: 3px solid rgba(47,107,87,.28); outline-offset: 3px; }
 .primary-button:disabled { opacity: .62; }
+.auth-divider { margin: 24px 0; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .72rem; font-weight: 750; text-transform: uppercase; }
+.auth-divider::before, .auth-divider::after { height: 1px; flex: 1; content: ""; background: var(--line); }
+.google-sign-in { width: 100%; min-height: 44px; display: flex; justify-content: center; transition: opacity 150ms ease; }
+.google-sign-in--disabled { opacity: .58; pointer-events: none; }
+.google-sign-in__fallback { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: #fff; font-weight: 700; box-shadow: 0 5px 16px rgba(31,45,39,.05); }
+.google-sign-in__fallback:disabled { color: var(--muted); opacity: .68; }
+.google-icon { width: 19px; height: 19px; display: block; flex: 0 0 auto; }
+.google-sign-in__status { margin: 0; color: var(--muted); font-size: .8rem; text-align: center; }
+.google-link-panel { margin-top: 18px; padding: 18px; border: 1px solid var(--accent-soft); border-radius: 14px; background: color-mix(in srgb,var(--accent-soft) 26%,var(--surface)); }
+.google-link-panel strong { font-size: .9rem; }
+.google-link-panel > div:first-child p { margin: 7px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.55; }
+.google-link-panel .field-group { margin-top: 18px; }
+.google-link-panel__actions { margin-top: 18px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.google-link-panel__actions .primary-button { min-height: 44px; }
 .auth-note { margin: 26px 0 0; color: var(--muted); font-size: .84rem; text-align: center; }
 .auth-note span { color: var(--ink); font-weight: 650; }
 .auth-footer { margin: 52px 0 0; color: #909792; font-size: .72rem; letter-spacing: .04em; }
