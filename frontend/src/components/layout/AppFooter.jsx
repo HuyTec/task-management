@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom'
 
+import AppLogo from '../icons/AppLogo'
+
 const FOOTER_VARIANTS = {
   app: {
-    mark: 'HT',
     title: 'Task Management',
     description: 'A calm workspace for deliberate progress.',
     links: [['Tasks', '/tasks'], ['Expenses', '/expenses'], ['Projects', '/projects'], ['Profile', '/profile']],
     meta: 'Private by default · Focused by design',
   },
   admin: {
-    mark: 'AD',
     title: 'Administration',
     description: 'Protected tools for careful system stewardship.',
     links: [['Overview', '/admin/dashboard'], ['Users', '/admin/users'], ['Tasks', '/admin/tasks']],
@@ -23,7 +23,7 @@ function AppFooter({ variant = 'app' }) {
   return (
     <footer className="app-footer">
       <div className="app-footer__brand">
-        <span className="app-footer__mark" aria-hidden="true">{footer.mark}</span>
+        <AppLogo admin={variant === 'admin'} className="app-footer__mark" />
         <div>
           <strong>{footer.title}</strong>
           <span>{footer.description}</span>

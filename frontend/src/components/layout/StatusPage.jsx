@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 
+import AppLogo from '../icons/AppLogo'
+
 function StatusPage({ code, eyebrow, title, description }) {
   const navigate = useNavigate()
   const isAuthenticated = Boolean(localStorage.getItem('accessToken'))
@@ -18,7 +20,7 @@ function StatusPage({ code, eyebrow, title, description }) {
     <main className="status-page">
       <section className="status-card" aria-labelledby={`status-title-${code}`}>
         <Link className="status-brand" to={homePath} aria-label="Task Management home">
-          <span className="brand-mark brand-mark--small" aria-hidden="true">HT</span>
+          <AppLogo className="brand-mark brand-mark--small" />
           <span>Task Management</span>
         </Link>
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import { logout } from '../../api/authApi'
+import AppLogo from '../icons/AppLogo'
 import NavigationIcon from '../icons/NavigationIcon'
 
 function WorkspaceHeader({ mark, title, subtitle, homePath, navigation, signOutPath }) {
@@ -27,7 +28,7 @@ function WorkspaceHeader({ mark, title, subtitle, homePath, navigation, signOutP
   return (
     <header className="dashboard-header">
       <NavLink className="workspace-brand" to={homePath} aria-label={`${title} home`}>
-        <span className="brand-mark brand-mark--small" aria-hidden="true">{mark}</span>
+        <AppLogo admin={mark !== 'HT'} className="brand-mark brand-mark--small" />
         <span className="workspace-brand__copy">
           <strong>{title}</strong>
           <span>{subtitle}</span>

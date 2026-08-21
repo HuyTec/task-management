@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { login, logout } from '../../api/authApi'
 import PasswordField from '../../components/auth/PasswordField'
+import AppLogo from '../../components/icons/AppLogo'
 import getApiErrorMessage from '../../utils/getApiErrorMessage'
 
 function AdminLoginPage() {
@@ -43,7 +44,7 @@ function AdminLoginPage() {
   return (
     <main className="auth-shell">
       <section className="auth-story" aria-labelledby="admin-product-title">
-        <div className="brand-mark" aria-hidden="true">AD</div>
+        <AppLogo admin className="brand-mark" />
         <div className="story-copy">
           <p className="eyebrow">Administration workspace</p>
           <h1 id="admin-product-title">Manage clearly.<br />Act carefully.</h1>

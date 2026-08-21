@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { register } from '../api/authApi'
 import PasswordField from '../components/auth/PasswordField'
+import AppLogo from '../components/icons/AppLogo'
 import Alert from '../components/ui/Alert'
 
 function RegisterPage() {
@@ -38,7 +39,7 @@ function RegisterPage() {
   return (
     <main className="auth-shell">
       <section className="auth-story" aria-labelledby="product-title">
-        <div className="brand-mark" aria-hidden="true">HT</div>
+        <AppLogo className="brand-mark" />
         <div className="story-copy">
           <p className="eyebrow">Build a steady system</p>
           <h1 id="product-title">Start clearly.<br />Grow consistently.</h1>

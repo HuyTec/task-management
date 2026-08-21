@@ -4,7 +4,7 @@ import AppShell from '../components/layout/AppShell'
 
 function DashboardPage() {
   return (
-    <AppShell>
+    <AppShell theme="home">
       <section className="dashboard-hero">
         <div className="dashboard-hero__copy">
           <p className="eyebrow">Personal workspace</p>

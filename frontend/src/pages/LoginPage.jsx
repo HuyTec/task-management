@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { linkGoogleAccount, login, loginWithGoogle } from '../api/authApi'
 import GoogleSignInButton from '../components/auth/GoogleSignInButton'
 import PasswordField from '../components/auth/PasswordField'
+import AppLogo from '../components/icons/AppLogo'
 import Alert from '../components/ui/Alert'
 import ConfirmationPanel from '../components/ui/ConfirmationPanel'
 
@@ -85,7 +86,7 @@ function LoginPage() {
   return (
     <main className="auth-shell">
       <section className="auth-story" aria-labelledby="product-title">
-        <div className="brand-mark" aria-hidden="true">HT</div>
+        <AppLogo className="brand-mark" />
         <div className="story-copy">
           <p className="eyebrow">A calmer way to make progress</p>
           <h1 id="product-title">Plan clearly.<br />Spend mindfully.</h1>
