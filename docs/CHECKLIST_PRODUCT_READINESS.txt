@@ -1,0 +1,267 @@
+TASK MANAGEMENT - CHECKLIST HOAN THIEN SAN PHAM
+================================================
+
+Muc tieu cua tai lieu
+---------------------
+Day la danh sach kiem tra de dua Task Management tu mot ung dung hoat dong duoc
+thanh mot san pham dau tay chi chu, dang tin cay va co the gioi thieu cho nguoi dung.
+
+Nguyen tac su dung:
+- [ ] Chua hoan thanh.
+- [x] Da hoan thanh va co bang chung kiem chung.
+- Khong danh dau [x] chi vi code compile hoac giao dien da xuat hien.
+- Moi muc quan trong can co bang chung: test, anh chup, log, migration hoac ket qua
+  smoke test tren moi truong gan production.
+- Hoan thanh theo tung cong phat hanh; khong lam tat ca cung luc.
+
+
+CONG 1 - CLOSED PILOT CHO NHOM NHO
+==================================
+
+1. Pham vi san pham
+-------------------
+[ ] Viet mot cau mo ta ro app giai quyet van de gi va cho doi tuong nao.
+[ ] Chot pham vi pilot: quan ly project, member, task, workflow, evidence, review,
+    notification va expense.
+[ ] Ghi ro nhung gi pilot CHUA ho tro: chat, AI scoring, microservices, realtime
+    presence va cac tinh nang chua duoc kiem chung.
+[ ] Dam bao UI khong quang ba tinh nang backend chua san sang.
+
+2. Vong nghiep vu cot loi
+-------------------------
+[ ] OWNER tao project va tro thanh OWNER membership.
+[ ] OWNER/MANAGER them va quan ly member dung phan quyen.
+[ ] Chi OWNER duoc cap hoac quan ly role ADMIN/MANAGER theo contract da chot.
+[ ] MEMBER co the claim task TODO chua co assignee.
+[ ] OWNER/MANAGER co the assign va clear assignee trong trang thai hop le.
+[ ] Chi active assignee co the start va submit cong viec.
+[ ] Task chi di qua cac command hop le:
+    TODO -> IN_PROGRESS -> IN_REVIEW -> DONE
+                         -> CHANGES_REQUESTED -> IN_PROGRESS
+[ ] Khong cho sua noi dung/thu tu acceptance criteria sau giai doan TODO.
+[ ] Khong cho doi assignee khi task dang IN_REVIEW hoac DONE.
+[ ] Assignee khong duoc review task cua chinh minh.
+[ ] Chi OWNER/MANAGER co quyen approve hoac request changes.
+[ ] Approve chi thanh cong khi co it nhat mot criterion va tat ca criteria dat.
+[ ] Request changes phai luu ly do va reset criteria cho vong sua tiep theo.
+[ ] Submission da nop la immutable; khong cho sua/xoa evidence da nop.
+[ ] Legacy endpoint khong duoc phep bo qua Submission + Evidence.
+[ ] Hai thao tac workflow dong thoi khong tao ra trang thai mau thuan.
+[ ] Project lifecycle chi chuyen qua cac command va source state hop le.
+[ ] Xoa task/project phai dung role va khong de lai du lieu workflow mo coi.
+
+3. Notification MVP
+-------------------
+[ ] Tao migration khong pha huy du lieu cho bang notifications.
+[ ] Notification co recipient, type, message, read state, createdAt va lien ket
+    task/project khi can.
+[ ] Chi tao notification sau khi transaction nghiep vu commit thanh cong.
+[ ] Loi gui realtime khong duoc rollback thao tac task/project chinh.
+[ ] Gui notification khi duoc giao task.
+[ ] Gui notification khi submission duoc nop de review.
+[ ] Gui notification khi reviewer request changes.
+[ ] Gui notification khi task duoc approve.
+[ ] GET danh sach notification co pagination.
+[ ] GET unread count.
+[ ] Mark one as read va mark all as read.
+[ ] User chi doc/sua notification cua chinh minh.
+[ ] Bam notification dieu huong dung Task Detail hoac Project Detail.
+[ ] Co empty state, loading state va error state tren UI.
+[ ] Chua them WebSocket neu polling/refetch da du cho pilot.
+
+4. Evidence va file storage
+---------------------------
+[ ] Chot ro pilot chi dung link evidence hay co upload file that.
+[ ] Neu chi dung link: an upload UI va ghi ro provider duoc ho tro.
+[ ] Neu co upload: cau hinh MinIO/S3-compatible storage that.
+[ ] Presigned upload co thoi han ngan va gioi han content type/file size.
+[ ] Backend verify object ton tai, dung kich thuoc va dung metadata truoc READY.
+[ ] Khong de storage key hoac URL noi bo lam lo du lieu nhay cam.
+[ ] Thu tinh huong upload dang do, upload that bai va retry.
+
+5. Hanh trinh nguoi dung
+------------------------
+[ ] Dang ky, dang nhap, refresh token va dang xuat hoat dong tren trinh duyet.
+[ ] Profile co the xem va cap nhat; ID noi bo khong hien trong UI.
+[ ] OWNER tao project, them member va tao task co criteria.
+[ ] MEMBER nhan/duoc giao task, start, tao submission va nop evidence.
+[ ] OWNER/MANAGER thay task trong Review Queue va review thanh cong.
+[ ] MEMBER nhan notification ve ket qua review.
+[ ] Expense co the tao tu Task Detail ma khong pha vo quan he task-expense.
+[ ] Back/refresh/deep-link khong lam mat trang thai hoac day user sai trang.
+[ ] UI tren mobile va desktop khong bi vo layout.
+[ ] Tat ca form co loading, disabled, success va error feedback ro rang.
+
+6. Kiem thu toi thieu cho pilot
+------------------------------
+[ ] Backend unit tests pass.
+[ ] Backend integration tests pass.
+[ ] Flyway migrations chay thanh cong tren PostgreSQL that, database rong.
+[ ] Flyway migrations chay thanh cong tren database co du lieu cu hop le.
+[ ] Frontend lint pass voi zero warning.
+[ ] Frontend production build pass.
+[ ] Them Vitest + React Testing Library cho UI workflow va authorization quan trong.
+[ ] Co it nhat mot E2E/smoke flow voi hai tai khoan OWNER va MEMBER.
+[ ] Test access token het han trong luc dang thao tac.
+[ ] Test duplicate click/retry khong tao duplicate review/submission.
+[ ] Test user khong thuoc project khong doc duoc task/member/notification.
+[ ] Luu lai lenh va ket qua kiem chung trong release note.
+
+7. Tai lieu pilot
+-----------------
+[ ] README phan anh dung feature, endpoint va cach khoi dong hien tai.
+[ ] Co .env.example, khong chua secret that.
+[ ] Co huong dan tao hai tai khoan va chay workflow mau.
+[ ] Co ghi chu limitation cua pilot.
+[ ] Co kenh nhan feedback va mau bao loi de tai hien duoc su co.
+
+
+CONG 2 - PUBLIC BETA
+====================
+
+8. Onboarding va account lifecycle
+----------------------------------
+[ ] Moi thanh vien bang invitation link/email thay vi phu thuoc username co san.
+[ ] Invitation co expiry, one-time acceptance va khong lam lo project.
+[ ] Forgot password va reset password bang token mot lan, co expiry.
+[ ] Doi/reset password thu hoi cac refresh session cu.
+[ ] Can nhac email verification truoc khi cho phep thao tac nhay cam.
+[ ] User co the xem va thu hoi cac session dang hoat dong.
+[ ] Dinh nghia ro deactivate, leave project va xoa tai khoan.
+
+9. Security
+-----------
+[ ] Authorization duoc kiem tra tai backend, khong dua vao an/hien nut frontend.
+[ ] Project membership duoc authorize truoc cache read.
+[ ] Redis key tach biet theo user khi response phu thuoc quyen cua user.
+[ ] Rate limit login, register, refresh, reset password va upload.
+[ ] CORS chi cho phep cac origin production can thiet.
+[ ] Cookie production dung Secure, HttpOnly va SameSite phu hop.
+[ ] JWT secret, database password va API key nam trong secret manager/environment.
+[ ] Log khong ghi password, token, cookie hoac du lieu ca nhan nhay cam.
+[ ] Validation gioi han do dai, kich thuoc, enum va URL tai moi trust boundary.
+[ ] Upload co allowlist MIME/type va khong tin filename tu client.
+[ ] Chay dependency/security scan va xu ly loi nghiem trong.
+[ ] Review cac rui ro OWASP lien quan auth, IDOR, injection, XSS va file upload.
+
+10. Data va migration
+---------------------
+[ ] Flyway la nguon quan ly schema duy nhat; Hibernate chi validate.
+[ ] Moi thay doi schema dung migration moi, khong sua migration da phat hanh.
+[ ] Migration duoc review ve constraint, index, rollback/recovery va du lieu cu.
+[ ] PostgreSQL co backup tu dong.
+[ ] Da thuc hanh restore backup vao mot database rieng.
+[ ] Dinh nghia retention cho notification, audit log va uploaded evidence.
+[ ] Xoa user/project co chinh sach giu, an danh hoa hoac xoa du lieu ro rang.
+[ ] Timestamp va timezone duoc hien thi nhat quan.
+
+11. Audit va minh bach
+----------------------
+[ ] Co Activity Log rieng, khong dung Notification thay cho audit trail.
+[ ] Luu actor, action, target, project, timestamp va metadata can thiet.
+[ ] Ghi nhan thay doi role/member.
+[ ] Ghi nhan assign/clear/claim/release task.
+[ ] Ghi nhan cac transition task va project.
+[ ] Ghi nhan thay doi quan trong nhu due date va acceptance criteria.
+[ ] Chi thanh vien co quyen moi xem duoc activity cua project.
+[ ] Khong bien audit thanh cham diem, giam sat hanh vi hoac reliability scoring.
+
+12. CI/CD va chat luong
+----------------------
+[ ] GitHub Actions chay backend tests, frontend lint va production build.
+[ ] Integration test quan trong chay voi Testcontainers PostgreSQL.
+[ ] Test Redis session rotation/cache khi thay doi code auth/cache.
+[ ] Playwright bao phu login -> project -> assignment -> submission -> review.
+[ ] Pull request khong duoc merge neu required checks that bai.
+[ ] Co staging environment gan giong production.
+[ ] Deployment dung image/version bat bien, khong dung latest tuy tien.
+[ ] Co rollback procedure cho application release.
+[ ] Migration production duoc backup va kiem tra truoc khi chay.
+
+13. Observability va van hanh
+----------------------------
+[ ] Actuator health chi expose endpoint can thiet va duoc bao ve.
+[ ] Health check phan biet app, PostgreSQL, Redis va object storage.
+[ ] Log co request/correlation ID de lan theo loi.
+[ ] Co metrics cho latency, error rate, authentication failure va DB pool.
+[ ] Co error tracking/alert khi loi 5xx tang hoac dependency ngung hoat dong.
+[ ] Co dashboard toi thieu cho uptime va tai nguyen.
+[ ] Co runbook: app khong start, DB down, Redis down, storage down, migration fail.
+[ ] Kiem tra cach he thong suy giam khi Redis hoac realtime khong kha dung.
+
+14. UX, accessibility va performance
+------------------------------------
+[ ] Moi input co label; keyboard co the thao tac cac flow chinh.
+[ ] Focus state ro rang, modal giu/tra focus dung.
+[ ] Mau sac va contrast dat muc de doc.
+[ ] Loi form noi ro cach sua, khong chi hien "Something went wrong".
+[ ] Confirm cac thao tac xoa hoac khong the hoan tac.
+[ ] Pagination/filter giu trang thai hop ly khi quay lai trang.
+[ ] Danh sach lon khong tai tat ca du lieu cung luc.
+[ ] Anh profile va evidence khong gay layout shift lon.
+[ ] Do page load va API latency truoc khi toi uu.
+[ ] Khong them cache moi neu chua co bottleneck duoc do.
+
+
+CONG 3 - PUBLIC PRODUCTION
+=========================
+
+15. Release gate
+----------------
+[ ] Tat ca migration duoc ghi nhan dung version tren PostgreSQL production-like.
+[ ] Tat ca automated checks bat buoc pass.
+[ ] Smoke test trinh duyet pass tren staging.
+[ ] Backup moi nhat da co va restore procedure da duoc kiem chung.
+[ ] Secret production khac dev va khong nam trong repository.
+[ ] Domain, HTTPS, CORS va cookie duoc kiem tra tren domain that.
+[ ] Monitoring va alert da hoat dong truoc khi mo cho user.
+[ ] Co owner xu ly incident va cach thong bao khi he thong gap su co.
+[ ] Co privacy policy/terms phu hop voi du lieu thuc te thu thap.
+[ ] Co release note: feature, limitation, migration va cach rollback.
+[ ] Sau release, theo doi error rate, logs va feedback trong khoang thoi gian da chot.
+
+
+NHUNG THU CHUA NEN THEM CHI DE APP TRONG "CHUYEN NGHIEP"
+========================================================
+
+[ ] Khong tach microservices khi modular monolith van dap ung tot.
+[ ] Khong them Kafka/RabbitMQ chi de gui vai notification noi bo.
+[ ] Khong them Kubernetes truoc khi co nhu cau deploy/scale that.
+[ ] Khong them GraphQL khi REST command API dang dien dat workflow ro rang.
+[ ] Khong them Redux/Zustand neu local state va query state van quan ly duoc.
+[ ] Khong them WebSocket truoc khi Notification persistence hoat dong on dinh.
+[ ] Khong them chat, presence hay AI scoring truoc khi pilot xac nhan nhu cau.
+[ ] Khong toi uu som; moi toi uu phai dua tren metric hoac bottleneck tai hien duoc.
+
+
+DEFINITION OF DONE CHO MOI FEATURE
+==================================
+
+[ ] Business rule va actor duoc mo ta ro.
+[ ] Authorization backend duoc xac dinh truoc khi code UI.
+[ ] Happy path va cac failure path quan trong duoc xu ly.
+[ ] Database change co Flyway migration khong pha huy du lieu.
+[ ] DTO validation va error response nhat quan.
+[ ] Cache/event chi chay dung thoi diem transaction.
+[ ] Unit/integration test phu hop voi muc rui ro.
+[ ] UI co loading, empty, success, error va permission state.
+[ ] Lint, build, tests va git diff check deu sach.
+[ ] Documentation va .env.example duoc cap nhat neu contract/config thay doi.
+[ ] Co bang chung runtime neu feature phu thuoc PostgreSQL, Redis, storage hoac browser.
+[ ] Khong tuyen bo hoan thanh neu chi moi compile/build ma chua kiem chung runtime can thiet.
+
+
+THU TU UU TIEN GAN NHAT
+======================
+
+1. Notification persistence + REST API + UI co ban.
+2. Smoke test hai tai khoan cho toan bo teamwork workflow.
+3. Chot link-only evidence hoac cau hinh object storage that.
+4. Vitest/React Testing Library cho cac UI invariant quan trong.
+5. Testcontainers PostgreSQL cho migration, lock va transaction quan trong.
+6. GitHub Actions cho backend test, frontend lint va build.
+7. Closed pilot voi 3-5 nguoi dung that va ghi nhan feedback.
+8. Invitation + password recovery neu tien toi public beta.
+9. Activity Log, backup/restore, monitoring va E2E truoc public production.
+10. Chi danh gia WebSocket sau khi notification MVP tao ra nhu cau realtime co the do duoc.
+
